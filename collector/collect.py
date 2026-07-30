@@ -329,22 +329,21 @@ def build_snapshot(
     log("스냅샷 생성 중...")
 
     # OHLCV + 시총 + 재무정보 통합
-    df = (
-        cap = cap.drop(
-            columns=["시가", "고가", "저가", "종가"],
-            errors="ignore"
-        )
-        
-        fund = fund.drop(
-            columns=["시가", "고가", "저가", "종가"],
-            errors="ignore"
-        )
-        
-        df = (
-            ohlcv[["시가", "고가", "저가", "종가"]]
-            .join(cap, how="inner")
-            .join(fund, how="inner")
-    )
+cap = cap.drop(
+    columns=["시가", "고가", "저가", "종가"],
+    errors="ignore"
+)
+
+fund = fund.drop(
+    columns=["시가", "고가", "저가", "종가"],
+    errors="ignore"
+)
+
+df = (
+    ohlcv[["시가", "고가", "저가", "종가"]]
+    .join(cap, how="inner")
+    .join(fund, how="inner")
+)
 
     d1y = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=365)).strftime("%Y%m%d")
     d6m = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=182)).strftime("%Y%m%d")
