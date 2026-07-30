@@ -328,48 +328,78 @@ def build_snapshot(
     """스크리닝용 최신 스냅샷 생성 (유니버스 종목만)"""
     log("스냅샷 생성 중...")
 
-    df = cap.join(fund, how="inner")
+    # OHLCV + 시총 + 재무정보 통합
+    df = (
+        ohlcv[["시가", "고가", "저가", "종가"]]
+        .join(cap, how="inner")
+        .join(fund, how="inner")
+    )
 
     d1y = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=365)).strftime("%Y%m%d")
     d6m = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=182)).strftime("%Y%m%d")
     d1m = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=30)).strftime("%Y%m%d")
 
-    for label, frm in [("ret_1y", d1y), ("ret_6m", d6m), ("ret_1m", d1m)]:
+    for label, frm in [
+        ("ret_1y", d1y),
+        ("ret_6m", d6m),
+        ("ret_1m", d1m),
+    ]:
         try:
             chg = krx_call(stock.get_market_price_change, frm, base_date, market="ALL")
-            df = df.join(chg[["등락률"]].rename(columns={"등락률": label}), how="left")
+            df = df.join(
+                chg[["등락률"]].rename(columns={"등락률": label}),
+                how="left",
+            )
         except Exception as e:
-            log(f"⚠️  {label} 조회 실패: {e}")
+            log(f"⚠️ {label} 조회 실패: {e}")
             df[label] = None
 
     bench = index_return(d1y, base_date)
     log(f"  KOSPI 1년 수익률: {bench:.2f}%")
 
-    master = client.table("stocks").select("ticker,name,market,sector").execute().data
+    master = client.table("stocks").select(
+        "ticker,name,market,sector"
+    ).execute().data
+
     mdf = pd.DataFrame(master).set_index("ticker") if master else pd.DataFrame()
 
     iso = f"{base_date[:4]}-{base_date[4:6]}-{base_date[6:]}"
     rows = []
+
     for t, r in df.iterrows():
+
         if t not in universe or t not in mdf.index:
             continue
+
         m = mdf.loc[t]
         ret_1y = clean_num(r.get("ret_1y"))
+
         rows.append({
             "ticker": t,
             "date": iso,
             "name": m["name"],
             "market": m["market"],
             "sector": m["sector"],
+
+            # ===== 가격 =====
+            "open": clean_num(r.get("시가"), True),
+            "high": clean_num(r.get("고가"), True),
+            "low": clean_num(r.get("저가"), True),
             "close": clean_num(r.get("종가"), True),
+
+            # ===== 거래 =====
             "market_cap": clean_num(r.get("시가총액"), True),
             "trade_value": clean_num(r.get("거래대금"), True),
             "shares": clean_num(r.get("상장주식수"), True),
+
+            # ===== 재무 =====
             "per": clean_num(r.get("PER")),
             "pbr": clean_num(r.get("PBR")),
             "eps": clean_num(r.get("EPS"), True),
             "bps": clean_num(r.get("BPS"), True),
             "div": clean_num(r.get("DIV")),
+
+            # ===== 수익률 =====
             "ret_1y": ret_1y,
             "ret_6m": clean_num(r.get("ret_6m")),
             "ret_1m": clean_num(r.get("ret_1m")),
@@ -378,6 +408,7 @@ def build_snapshot(
 
     n = upsert(client, "snapshot", rows)
     log(f"✅ 스냅샷 {n}건")
+
     return n
 
 
