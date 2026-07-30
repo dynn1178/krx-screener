@@ -1,16 +1,31 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { eok, int, num, pct, trend } from "@/lib/format";
 import { screen, toCsv } from "@/lib/screen";
-import { DEFAULT_FILTERS, type Filters, type Snapshot } from "@/lib/types";
+import {
+  DEFAULT_FILTERS,
+  type Filters,
+  type NewsItem,
+  type Snapshot,
+} from "@/lib/types";
 
 type Props = { rows: Snapshot[]; sectors: string[]; baseDate: string };
+
+const naverFinanceUrl = (ticker: string) =>
+  `https://finance.naver.com/item/main.naver?code=${ticker}`;
+
+type NewsState = {
+  status: "loading" | "done" | "error";
+  items?: NewsItem[];
+  msg?: string;
+};
 
 export default function Screener({ rows, sectors, baseDate }: Props) {
   const [f, setF] = useState<Filters>(DEFAULT_FILTERS);
   const [showFunnel, setShowFunnel] = useState(false);
+  const [newsTicker, setNewsTicker] = useState<string | null>(null);
+  const [newsCache, setNewsCache] = useState<Record<string, NewsState>>({});
 
   const { rows: result, funnel } = useMemo(() => screen(rows, f), [rows, f]);
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) =>
@@ -22,6 +37,29 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
     a.href = URL.createObjectURL(blob);
     a.download = `screen_${baseDate}.csv`;
     a.click();
+  };
+
+  const toggleNews = (ticker: string, name: string) => {
+    setNewsTicker((cur) => (cur === ticker ? null : ticker));
+    if (newsCache[ticker]) return;
+
+    setNewsCache((c) => ({ ...c, [ticker]: { status: "loading" } }));
+    fetch(`/api/news?q=${encodeURIComponent(name)}`)
+      .then((r) => r.json())
+      .then((j) =>
+        setNewsCache((c) => ({
+          ...c,
+          [ticker]: j.error
+            ? { status: "error", msg: j.error }
+            : { status: "done", items: (j.items ?? []).slice(0, 3) },
+        }))
+      )
+      .catch((e) =>
+        setNewsCache((c) => ({
+          ...c,
+          [ticker]: { status: "error", msg: String(e) },
+        }))
+      );
   };
 
   return (
@@ -278,49 +316,67 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 </thead>
                 <tbody>
                   {result.slice(0, 300).map((r) => (
-                    <tr
-                      key={r.ticker}
-                      className="border-b border-neutral-100 last:border-0 hover:bg-teal-50/40"
-                    >
-                      <td className="px-3 py-2">
-                        <Link
-                          href={`/stock/${r.ticker}`}
-                          className="font-medium text-neutral-900 hover:text-teal-700 hover:underline"
-                        >
-                          {r.name}
-                        </Link>
-                        <span className="tabular ml-1.5 text-[10px] text-neutral-400">
-                          {r.ticker}
-                        </span>
-                      </td>
-                      <td className="max-w-[130px] truncate px-3 py-2 text-neutral-500">
-                        {r.sector ?? "-"}
-                      </td>
-                      <Td>{int(r.close)}</Td>
-                      <Td>{eok(r.market_cap)}</Td>
-                      <Td className={trend(r.ret_1y)}>{pct(r.ret_1y, true)}</Td>
-                      <Td className={trend(r.ret_6m)}>{pct(r.ret_6m, true)}</Td>
-                      <Td className={trend(r.ret_1m)}>{pct(r.ret_1m, true)}</Td>
-                      <Td className={trend(r.rs_1y)}>{pct(r.rs_1y, true)}</Td>
-                      <Td>{num(r.per, 1)}</Td>
-                      <Td>{num(r.pbr)}</Td>
-                      <Td>{int(r.eps)}</Td>
-                      <Td>{int(r.bps)}</Td>
-                      <Td>{num(r.div)}</Td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="h-1.5 w-10 overflow-hidden rounded-full bg-neutral-100">
-                            <div
-                              className="h-full bg-teal-600"
-                              style={{ width: `${r.score}%` }}
-                            />
-                          </div>
-                          <span className="tabular w-6 text-right font-semibold">
-                            {r.score}
+                    <Fragment key={r.ticker}>
+                      <tr className="border-b border-neutral-100 last:border-0 hover:bg-teal-50/40">
+                        <td className="px-3 py-2">
+                          <a
+                            href={naverFinanceUrl(r.ticker)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-neutral-900 hover:text-teal-700 hover:underline"
+                          >
+                            {r.name}
+                          </a>
+                          <span className="tabular ml-1.5 text-[10px] text-neutral-400">
+                            {r.ticker}
                           </span>
-                        </div>
-                      </td>
-                    </tr>
+                          <button
+                            onClick={() => toggleNews(r.ticker, r.name)}
+                            className={`ml-1.5 rounded border px-1.5 py-0.5 text-[10px] transition ${
+                              newsTicker === r.ticker
+                                ? "border-teal-700 bg-teal-700 text-white"
+                                : "border-[var(--line)] text-neutral-500 hover:border-neutral-400"
+                            }`}
+                          >
+                            기사
+                          </button>
+                        </td>
+                        <td className="max-w-[130px] truncate px-3 py-2 text-neutral-500">
+                          {r.sector ?? "-"}
+                        </td>
+                        <Td>{int(r.close)}</Td>
+                        <Td>{eok(r.market_cap)}</Td>
+                        <Td className={trend(r.ret_1y)}>{pct(r.ret_1y, true)}</Td>
+                        <Td className={trend(r.ret_6m)}>{pct(r.ret_6m, true)}</Td>
+                        <Td className={trend(r.ret_1m)}>{pct(r.ret_1m, true)}</Td>
+                        <Td className={trend(r.rs_1y)}>{pct(r.rs_1y, true)}</Td>
+                        <Td>{num(r.per, 1)}</Td>
+                        <Td>{num(r.pbr)}</Td>
+                        <Td>{int(r.eps)}</Td>
+                        <Td>{int(r.bps)}</Td>
+                        <Td>{num(r.div)}</Td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="h-1.5 w-10 overflow-hidden rounded-full bg-neutral-100">
+                              <div
+                                className="h-full bg-teal-600"
+                                style={{ width: `${r.score}%` }}
+                              />
+                            </div>
+                            <span className="tabular w-6 text-right font-semibold">
+                              {r.score}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {newsTicker === r.ticker && (
+                        <tr className="border-b border-neutral-100 bg-neutral-50/60 last:border-0">
+                          <td colSpan={14} className="px-3 py-2.5">
+                            <NewsRefs entry={newsCache[r.ticker]} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -441,3 +497,35 @@ const Td = ({
 }) => (
   <td className={`tabular px-3 py-2 text-right ${className}`}>{children}</td>
 );
+
+function NewsRefs({ entry }: { entry?: NewsState }) {
+  if (!entry || entry.status === "loading")
+    return <p className="text-[11px] text-neutral-400">참조 기사 조회 중...</p>;
+
+  if (entry.status === "error")
+    return (
+      <p className="text-[11px] text-neutral-400">
+        {entry.msg || "기사를 불러올 수 없습니다."}
+      </p>
+    );
+
+  if (!entry.items?.length)
+    return <p className="text-[11px] text-neutral-400">관련 기사가 없습니다.</p>;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entry.items.map((n, i) => (
+        <a
+          key={i}
+          href={n.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={n.title}
+          className="max-w-[340px] truncate rounded-md border border-[var(--line)] bg-white px-2.5 py-1 text-[11px] text-neutral-700 hover:border-teal-700 hover:text-teal-700"
+        >
+          {n.title}
+        </a>
+      ))}
+    </div>
+  );
+}

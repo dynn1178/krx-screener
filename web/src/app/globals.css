@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fafaf9;
+  --card: #ffffff;
+  --line: #e7e5e4;
+}
+
+html, body {
+  background: var(--bg);
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-nanum-gothic), "Nanum Gothic", "Malgun Gothic",
+    "맑은 고딕", system-ui, sans-serif;
+  font-feature-settings: "tnum";
+}
+
+/* 숫자는 등폭으로 — 표 정렬용 */
+.tabular { font-variant-numeric: tabular-nums; }
+
+input[type="range"] { accent-color: #0f766e; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
