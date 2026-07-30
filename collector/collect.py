@@ -169,7 +169,8 @@ def compute_universe(ohlcv: pd.DataFrame, cap: pd.DataFrame) -> set[str]:
         return set()
 
     def is_common(t: str) -> bool:
-        return str(t).endswith("0")
+        t = str(t).zfill(6)
+        return t.endswith("0")
 
     ohlcv_c = ohlcv[[is_common(t) for t in ohlcv.index]]
     cap_c = cap[[is_common(t) for t in cap.index]]
@@ -329,21 +330,42 @@ def build_snapshot(
     log("스냅샷 생성 중...")
 
     # OHLCV + 시총 + 재무정보 통합
-cap = cap.drop(
-    columns=["시가", "고가", "저가", "종가"],
-    errors="ignore"
-)
-
-fund = fund.drop(
-    columns=["시가", "고가", "저가", "종가"],
-    errors="ignore"
-)
-
-df = (
-    ohlcv[["시가", "고가", "저가", "종가"]]
-    .join(cap, how="inner")
-    .join(fund, how="inner")
-)
+    cap = cap.drop(
+        columns=[
+            "시가",
+            "고가",
+            "저가",
+            "종가",
+            "거래량",
+            "등락률"
+        ],
+        errors="ignore"
+    )
+    
+    fund = fund.drop(
+        columns=[
+            "시가",
+            "고가",
+            "저가",
+            "종가",
+            "거래량",
+            "거래대금",
+            "등락률"
+        ],
+        errors="ignore"
+    )
+    
+    
+    df = (
+        ohlcv[[
+            "시가",
+            "고가",
+            "저가",
+            "종가"
+        ]]
+        .join(cap, how="inner")
+        .join(fund, how="inner")
+    )
 
     d1y = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=365)).strftime("%Y%m%d")
     d6m = (datetime.strptime(base_date, "%Y%m%d") - timedelta(days=182)).strftime("%Y%m%d")
