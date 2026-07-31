@@ -14,7 +14,8 @@
   /* 글자 */
   --fg: #1c1917;
   --fg-muted: #57534e;
-  --fg-subtle: #a8a29e;
+  /* 보조 텍스트도 WCAG AA(4.5:1)를 넘겨야 한다 — #a8a29e 는 밝은 배경에서 2.4:1 이었다 */
+  --fg-subtle: #78716c;
 
   /* 강조 */
   --accent: #0f766e;
@@ -45,7 +46,8 @@
 
   --fg: #f5f5f4;
   --fg-muted: #a8a29e;
-  --fg-subtle: #78716c;
+  /* 어두운 배경에서는 반대로 올려야 4.5:1 을 넘는다 */
+  --fg-subtle: #8f8781;
 
   --accent: #2dd4bf;
   --accent-bg: #042f2e;

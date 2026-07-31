@@ -43,12 +43,12 @@ export default function StockDetail({ snap, price, fund }: Props) {
       <div>
         <div className="flex items-baseline gap-2.5">
           <h1 className="text-2xl font-semibold tracking-tight">{snap.name}</h1>
-          <span className="tabular text-sm text-neutral-400">{snap.ticker}</span>
-          <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
+          <span className="tabular text-sm text-[var(--fg-subtle)]">{snap.ticker}</span>
+          <span className="rounded bg-[var(--card-2)] px-1.5 py-0.5 text-[12px] text-[var(--fg-muted)]">
             {snap.market}
           </span>
         </div>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-[var(--fg-subtle)]">
           {snap.sector ?? "업종 미분류"} · 기준일 {snap.date}
         </p>
       </div>
@@ -94,8 +94,8 @@ export default function StockDetail({ snap, price, fund }: Props) {
             onClick={() => setTab(t.id)}
             className={`-mb-px border-b-2 px-3.5 py-2 text-sm transition ${
               tab === t.id
-                ? "border-teal-700 font-medium text-teal-800"
-                : "border-transparent text-neutral-500 hover:text-neutral-800"
+                ? "border-[var(--accent)] font-medium text-[var(--accent-fg)]"
+                : "border-transparent text-[var(--fg-subtle)] hover:text-[var(--fg)]"
             }`}
           >
             {t.label}
@@ -103,7 +103,7 @@ export default function StockDetail({ snap, price, fund }: Props) {
         ))}
       </div>
 
-      <div className="rounded-xl border border-[var(--line)] bg-white p-5">
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5">
         {tab === "price" && <PriceTab price={price} />}
         {tab === "financials" && <FinancialsTab ticker={snap.ticker} />}
         {tab === "band" && <BandTab fund={fund} />}
@@ -149,8 +149,8 @@ function PriceTab({ price }: { price: PricePoint[] }) {
             onClick={() => setMonths(o.m)}
             className={`rounded-md border px-2.5 py-1 text-xs transition ${
               months === o.m
-                ? "border-teal-700 bg-teal-700 text-white"
-                : "border-[var(--line)] text-neutral-600 hover:border-neutral-400"
+                ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                : "border-[var(--line)] text-[var(--fg-muted)] hover:border-[var(--line-strong)]"
             }`}
           >
             {o.l}
@@ -244,10 +244,10 @@ function PriceTip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload as PricePoint;
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs shadow-sm">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-xs shadow-sm">
       <p className="mb-1 font-medium">{label}</p>
       <p className="tabular">종가 {int(p.close)}원</p>
-      <p className="tabular text-neutral-500">
+      <p className="tabular text-[var(--fg-subtle)]">
         고 {int(p.high)} / 저 {int(p.low)}
       </p>
     </div>
@@ -329,7 +329,7 @@ function FinancialsTab({ ticker }: { ticker: string }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-[var(--line)] text-neutral-500">
+            <tr className="border-b border-[var(--line)] text-[var(--fg-subtle)]">
               <th className="px-2 py-2 text-left font-medium">계정 (억원)</th>
               {data.years.map((y) => (
                 <th key={y} className="px-2 py-2 text-right font-medium">
@@ -340,8 +340,8 @@ function FinancialsTab({ ticker }: { ticker: string }) {
           </thead>
           <tbody>
             {Object.entries(data.accounts).map(([acct, vals]) => (
-              <tr key={acct} className="border-b border-neutral-100 last:border-0">
-                <td className="px-2 py-1.5 text-neutral-700">{acct}</td>
+              <tr key={acct} className="border-b border-[var(--line)] last:border-0">
+                <td className="px-2 py-1.5 text-[var(--fg-muted)]">{acct}</td>
                 {vals.map((v, i) => (
                   <td key={i} className="tabular px-2 py-1.5 text-right">
                     {v == null
@@ -356,7 +356,7 @@ function FinancialsTab({ ticker }: { ticker: string }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-neutral-400">
+      <p className="text-[12px] text-[var(--fg-subtle)]">
         ※ 외부 정보 — 금융감독원 OpenDART 공시 원문 (연결 기준 우선)
       </p>
     </div>
@@ -386,20 +386,20 @@ function BandTab({ fund }: { fund: FundPoint[] }) {
               onClick={() => setMetric(m)}
               className={`rounded-md border px-2.5 py-1 text-xs uppercase transition ${
                 metric === m
-                  ? "border-teal-700 bg-teal-700 text-white"
-                  : "border-[var(--line)] text-neutral-600 hover:border-neutral-400"
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                  : "border-[var(--line)] text-[var(--fg-muted)] hover:border-[var(--line-strong)]"
               }`}
             >
               {m}
             </button>
           ))}
         </div>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-[var(--fg-subtle)]">
           현재 {metric.toUpperCase()}{" "}
-          <strong className="text-neutral-900">{cur.toFixed(2)}</strong> · 과거
+          <strong className="text-[var(--fg)]">{cur.toFixed(2)}</strong> · 과거
           3년 중{" "}
           <strong
-            className={percentile < 30 ? "text-blue-600" : percentile > 70 ? "text-rose-600" : ""}
+            className={percentile < 30 ? "t-down" : percentile > 70 ? "t-up" : ""}
           >
             {percentile.toFixed(0)} 분위
           </strong>
@@ -446,7 +446,7 @@ function BandTab({ fund }: { fund: FundPoint[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
-      <p className="text-[11px] leading-relaxed text-neutral-400">
+      <p className="text-[12px] leading-relaxed text-[var(--fg-subtle)]">
         파란선(20분위) 아래면 과거 3년 대비 저평가 구간, 빨간선(80분위) 위면 고평가
         구간입니다. 다만 실적이 꺾이는 중이라면 낮은 PER이 오히려 함정일 수 있습니다.
       </p>
@@ -471,23 +471,23 @@ function NewsTab({ name }: { name: string }) {
   if (!items.length) return <Empty text="관련 뉴스가 없습니다." />;
 
   return (
-    <div className="divide-y divide-neutral-100">
+    <div className="divide-y divide-[var(--line)]">
       {items.map((n, i) => (
         <a
           key={i}
           href={n.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="block py-3 first:pt-0 last:pb-0 hover:bg-teal-50/40"
+          className="block py-3 first:pt-0 last:pb-0 hover:bg-[var(--accent-bg)]/40"
         >
-          <p className="text-sm font-medium text-neutral-900">{n.title}</p>
-          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-neutral-600">
+          <p className="text-sm font-medium text-[var(--fg)]">{n.title}</p>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[var(--fg-muted)]">
             {n.description}
           </p>
-          <p className="mt-1 text-[11px] text-neutral-400">{n.pubDate}</p>
+          <p className="mt-1 text-[12px] text-[var(--fg-subtle)]">{n.pubDate}</p>
         </a>
       ))}
-      <p className="pt-3 text-[11px] text-neutral-400">
+      <p className="pt-3 text-[12px] text-[var(--fg-subtle)]">
         ※ 외부 정보 — 네이버 뉴스 검색 API
       </p>
     </div>
@@ -509,14 +509,14 @@ function Metric({
   className?: string;
 }) {
   return (
-    <div className="bg-white px-4 py-3">
-      <p className="text-[11px] text-neutral-500" title={hint}>
+    <div className="bg-[var(--card)] px-4 py-3">
+      <p className="text-[12px] text-[var(--fg-subtle)]" title={hint}>
         {label}
       </p>
       <p className={`tabular mt-0.5 text-lg font-semibold ${className}`}>
         {value}
         {suffix && (
-          <span className="ml-0.5 text-xs font-normal text-neutral-400">
+          <span className="ml-0.5 text-xs font-normal text-[var(--fg-subtle)]">
             {suffix}
           </span>
         )}
@@ -526,5 +526,5 @@ function Metric({
 }
 
 const Empty = ({ text }: { text: string }) => (
-  <p className="py-12 text-center text-sm text-neutral-400">{text}</p>
+  <p className="py-12 text-center text-sm text-[var(--fg-subtle)]">{text}</p>
 );

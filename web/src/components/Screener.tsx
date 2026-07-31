@@ -65,12 +65,12 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
   return (
     <div className="flex gap-6">
       {/* ══════════ 사이드바 ══════════ */}
-      <aside className="sticky top-[57px] h-fit w-[280px] shrink-0 space-y-5 rounded-xl border border-[var(--line)] bg-white p-5">
+      <aside className="sticky top-[57px] h-fit w-[280px] shrink-0 space-y-5 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold">스크리닝 조건</h2>
           <button
             onClick={() => setF(DEFAULT_FILTERS)}
-            className="text-xs text-neutral-500 hover:text-teal-700"
+            className="text-xs text-[var(--fg-subtle)] hover:text-[var(--accent-fg)]"
           >
             초기화
           </button>
@@ -84,8 +84,8 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 onClick={() => set("market", m)}
                 className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition ${
                   f.market === m
-                    ? "border-teal-700 bg-teal-700 text-white"
-                    : "border-[var(--line)] text-neutral-600 hover:border-neutral-400"
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                    : "border-[var(--line)] text-[var(--fg-muted)] hover:border-[var(--line-strong)]"
                 }`}
               >
                 {m}
@@ -210,7 +210,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
           {f.sectors.length > 0 && (
             <button
               onClick={() => set("sectors", [])}
-              className="text-xs text-neutral-500 hover:text-teal-700"
+              className="text-xs text-[var(--fg-subtle)] hover:text-[var(--accent-fg)]"
             >
               업종 선택 해제
             </button>
@@ -224,23 +224,23 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
           <div>
             <h1 className="text-xl font-semibold tracking-tight">
               {result.length.toLocaleString()}
-              <span className="ml-1 text-sm font-normal text-neutral-500">
+              <span className="ml-1 text-sm font-normal text-[var(--fg-subtle)]">
                 / {rows.length.toLocaleString()}종목
               </span>
             </h1>
-            <p className="mt-0.5 text-xs text-neutral-500">기준일 {baseDate}</p>
+            <p className="mt-0.5 text-xs text-[var(--fg-subtle)]">기준일 {baseDate}</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setShowFunnel((v) => !v)}
-              className="rounded-md border border-[var(--line)] bg-white px-3 py-1.5 text-xs hover:border-neutral-400"
+              className="rounded-md border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs hover:border-[var(--line-strong)]"
             >
               퍼널 {showFunnel ? "닫기" : "보기"}
             </button>
             <button
               onClick={download}
               disabled={!result.length}
-              className="rounded-md bg-teal-700 px-3 py-1.5 text-xs text-white disabled:opacity-40"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs text-white disabled:opacity-40"
             >
               CSV 다운로드
             </button>
@@ -248,8 +248,8 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
         </div>
 
         {(showFunnel || result.length === 0) && (
-          <div className="mb-4 rounded-lg border border-[var(--line)] bg-white p-4">
-            <p className="mb-3 text-xs font-medium text-neutral-600">
+          <div className="mb-4 rounded-lg border border-[var(--line)] bg-[var(--card)] p-4">
+            <p className="mb-3 text-xs font-medium text-[var(--fg-muted)]">
               스크리닝 퍼널 — 어느 조건에서 많이 걸러지는지 확인하세요
             </p>
             <div className="space-y-1.5">
@@ -258,12 +258,12 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 const drop = prev - s.count;
                 return (
                   <div key={s.label} className="flex items-center gap-3 text-xs">
-                    <span className="w-36 shrink-0 text-neutral-600">
+                    <span className="w-36 shrink-0 text-[var(--fg-muted)]">
                       {s.label}
                     </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--card-2)]">
                       <div
-                        className="h-full rounded-full bg-teal-600 transition-all"
+                        className="h-full rounded-full bg-[var(--accent)] transition-all"
                         style={{
                           width: `${(s.count / (funnel[0].count || 1)) * 100}%`,
                         }}
@@ -274,7 +274,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                     </span>
                     <span
                       className={`tabular w-16 text-right ${
-                        drop > 0 ? "text-rose-500" : "text-neutral-300"
+                        drop > 0 ? "t-up" : "text-[var(--fg-subtle)]"
                       }`}
                     >
                       {drop > 0 ? `−${drop.toLocaleString()}` : "—"}
@@ -284,7 +284,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
               })}
             </div>
             {result.length === 0 && (
-              <p className="mt-3 rounded-md bg-amber-50 p-2.5 text-xs text-amber-800">
+              <p className="mt-3 rounded-md bg-[var(--warn-bg)] p-2.5 text-xs text-[var(--warn-fg)]">
                 조건이 너무 좁습니다. 감소폭(빨간 숫자)이 가장 큰 단계의 조건을
                 완화해보세요.
               </p>
@@ -293,10 +293,10 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
         )}
 
         {result.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+          <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)]">
             <div className="max-h-[calc(100vh-220px)] overflow-auto">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 z-10 bg-neutral-50 text-[11px] text-neutral-500">
+                <thead className="sticky top-0 z-10 bg-[var(--card-2)] text-[12px] text-[var(--fg-subtle)]">
                   <tr className="border-b border-[var(--line)]">
                     <Th className="text-left">종목</Th>
                     <Th className="text-left">업종</Th>
@@ -317,31 +317,31 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 <tbody>
                   {result.slice(0, 300).map((r) => (
                     <Fragment key={r.ticker}>
-                      <tr className="border-b border-neutral-100 last:border-0 hover:bg-teal-50/40">
+                      <tr className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--accent-bg)]/40">
                         <td className="px-3 py-2">
                           <a
                             href={naverFinanceUrl(r.ticker)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-medium text-neutral-900 hover:text-teal-700 hover:underline"
+                            className="font-medium text-[var(--fg)] hover:text-[var(--accent-fg)] hover:underline"
                           >
                             {r.name}
                           </a>
-                          <span className="tabular ml-1.5 text-[10px] text-neutral-400">
+                          <span className="tabular ml-1.5 text-[12px] text-[var(--fg-subtle)]">
                             {r.ticker}
                           </span>
                           <button
                             onClick={() => toggleNews(r.ticker, r.name)}
-                            className={`ml-1.5 rounded border px-1.5 py-0.5 text-[10px] transition ${
+                            className={`ml-1.5 rounded border px-1.5 py-0.5 text-[12px] transition ${
                               newsTicker === r.ticker
-                                ? "border-teal-700 bg-teal-700 text-white"
-                                : "border-[var(--line)] text-neutral-500 hover:border-neutral-400"
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                                : "border-[var(--line)] text-[var(--fg-subtle)] hover:border-[var(--line-strong)]"
                             }`}
                           >
                             기사
                           </button>
                         </td>
-                        <td className="max-w-[130px] truncate px-3 py-2 text-neutral-500">
+                        <td className="max-w-[130px] truncate px-3 py-2 text-[var(--fg-subtle)]">
                           {r.sector ?? "-"}
                         </td>
                         <Td>{int(r.close)}</Td>
@@ -357,9 +357,9 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                         <Td>{num(r.div)}</Td>
                         <td className="px-3 py-2">
                           <div className="flex items-center justify-end gap-2">
-                            <div className="h-1.5 w-10 overflow-hidden rounded-full bg-neutral-100">
+                            <div className="h-1.5 w-10 overflow-hidden rounded-full bg-[var(--card-2)]">
                               <div
-                                className="h-full bg-teal-600"
+                                className="h-full bg-[var(--accent)]"
                                 style={{ width: `${r.score}%` }}
                               />
                             </div>
@@ -370,7 +370,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                         </td>
                       </tr>
                       {newsTicker === r.ticker && (
-                        <tr className="border-b border-neutral-100 bg-neutral-50/60 last:border-0">
+                        <tr className="border-b border-[var(--line)] bg-[var(--card-2)] last:border-0">
                           <td colSpan={14} className="px-3 py-2.5">
                             <NewsRefs entry={newsCache[r.ticker]} />
                           </td>
@@ -382,7 +382,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
               </table>
             </div>
             {result.length > 300 && (
-              <p className="border-t border-[var(--line)] bg-neutral-50 px-3 py-2 text-center text-[11px] text-neutral-500">
+              <p className="border-t border-[var(--line)] bg-[var(--card-2)] px-3 py-2 text-center text-[12px] text-[var(--fg-subtle)]">
                 상위 300종목만 표시 · 전체 {result.length.toLocaleString()}종목은
                 CSV로 받으세요
               </p>
@@ -404,7 +404,7 @@ function Group({
 }) {
   return (
     <div className="space-y-2.5 border-t border-[var(--line)] pt-4 first-of-type:border-0 first-of-type:pt-0">
-      <p className="text-[11px] font-medium tracking-wide text-neutral-400 uppercase">
+      <p className="text-[12px] font-medium tracking-wide text-[var(--fg-subtle)] uppercase">
         {label}
       </p>
       {children}
@@ -434,7 +434,7 @@ function Range({
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <label className="text-xs text-neutral-600">{label}</label>
+        <label className="text-xs text-[var(--fg-muted)]">{label}</label>
         <span className="tabular text-xs font-medium">
           {value.toLocaleString()}
           {unit}
@@ -449,7 +449,7 @@ function Range({
         onChange={(e) => onChange(Number(e.target.value))}
         className="mt-1 w-full"
       />
-      {hint && <p className="text-[10px] leading-tight text-neutral-400">{hint}</p>}
+      {hint && <p className="text-[12px] leading-tight text-[var(--fg-subtle)]">{hint}</p>}
     </div>
   );
 }
@@ -464,12 +464,12 @@ function Check({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-600">
+    <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg-muted)]">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 accent-teal-700"
+        className="h-3.5 w-3.5 "
       />
       {label}
     </label>
@@ -500,17 +500,17 @@ const Td = ({
 
 function NewsRefs({ entry }: { entry?: NewsState }) {
   if (!entry || entry.status === "loading")
-    return <p className="text-[11px] text-neutral-400">참조 기사 조회 중...</p>;
+    return <p className="text-[12px] text-[var(--fg-subtle)]">참조 기사 조회 중...</p>;
 
   if (entry.status === "error")
     return (
-      <p className="text-[11px] text-neutral-400">
+      <p className="text-[12px] text-[var(--fg-subtle)]">
         {entry.msg || "기사를 불러올 수 없습니다."}
       </p>
     );
 
   if (!entry.items?.length)
-    return <p className="text-[11px] text-neutral-400">관련 기사가 없습니다.</p>;
+    return <p className="text-[12px] text-[var(--fg-subtle)]">관련 기사가 없습니다.</p>;
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -521,7 +521,7 @@ function NewsRefs({ entry }: { entry?: NewsState }) {
           target="_blank"
           rel="noopener noreferrer"
           title={n.title}
-          className="max-w-[340px] truncate rounded-md border border-[var(--line)] bg-white px-2.5 py-1 text-[11px] text-neutral-700 hover:border-teal-700 hover:text-teal-700"
+          className="max-w-[340px] truncate rounded-md border border-[var(--line)] bg-[var(--card)] px-2.5 py-1 text-[12px] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent-fg)]"
         >
           {n.title}
         </a>

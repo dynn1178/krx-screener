@@ -6,16 +6,9 @@ import { naverLink, type ReportRow } from "@/lib/reportTypes";
 
 const CATEGORIES = ["전체", "급등주", "급락주", "6%이상변동", "거래대금상위"] as const;
 
-/** 구세대 screening 은 '변동폭확대' 처럼 다른 라벨을 쓴다 */
-const ALIASES: Record<string, string[]> = {
-  급등주: ["급등주"],
-  급락주: ["급락주"],
-  "6%이상변동": ["6%이상변동", "변동폭확대"],
-  거래대금상위: ["거래대금상위", "상위거래대금"],
-};
-
+/** 구분값은 daily_movers 뷰가 만들므로 라벨이 하나로 통일돼 있다 */
 const matches = (category: string | null, cat: string) =>
-  !!category && (ALIASES[cat] ?? [cat]).some((a) => category.includes(a));
+  !!category && category.includes(cat);
 
 /** 구분값 뱃지 색 — CSS 변수 기반이라 다크모드에서도 대비가 유지된다 */
 function catStyle(c: string): React.CSSProperties {
@@ -25,6 +18,7 @@ function catStyle(c: string): React.CSSProperties {
     return { background: "var(--down-bg)", color: "var(--down)" };
   if (c.includes("변동"))
     return { background: "var(--warn-bg)", color: "var(--warn-fg)" };
+  // 거래대금상위
   return { background: "var(--accent-bg)", color: "var(--accent-fg)" };
 }
 

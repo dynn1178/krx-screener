@@ -1,11 +1,15 @@
 import SurgeCalendar from "@/components/SurgeCalendar";
-import { getKeywords, getCalendar } from "@/lib/queries";
+import { getKeywords, getCalendar, getDailyIndexMap } from "@/lib/queries";
 import { wonShort } from "@/lib/format";
 
 export const revalidate = 1800;
 
 export default async function Page() {
-  const [keywords, agg] = await Promise.all([getKeywords(), getCalendar(400)]);
+  const [keywords, agg, indexMap] = await Promise.all([
+    getKeywords(),
+    getCalendar(400),
+    getDailyIndexMap(),
+  ]);
 
   if (!keywords.length && !agg.length) {
     return (
@@ -81,7 +85,11 @@ export default async function Page() {
         </div>
       )}
 
-      <SurgeCalendar rows={keywords} months={months} />
+      <SurgeCalendar
+        rows={keywords}
+        months={months}
+        indexMap={Object.fromEntries(indexMap)}
+      />
     </div>
   );
 }

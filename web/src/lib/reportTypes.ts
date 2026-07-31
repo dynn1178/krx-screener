@@ -147,6 +147,42 @@ export type KeywordRow = {
   total_trade_value: number | null;
   up_n: number;
   stocks: KeywordStock[];
+  /** 그날 거래대금 기준 순위 */
+  dayRank: number;
+  /** 며칠째 연속으로 등장했는지 */
+  streakDays: number;
+};
+
+/** 전일 대비 수급 방향이 뒤집힌 종목 */
+export type FlowSignal = {
+  ticker: string;
+  name: string | null;
+  market: string | null;
+  changeRate: number | null;
+  tradeValue: number | null;
+  foreignNetBuy: number | null;
+  instNetBuy: number | null;
+  indivNetBuy: number | null;
+  foreignTurn: "buy" | "sell" | null;
+  instTurn: "buy" | "sell" | null;
+};
+
+/** 종목 상세의 과거 이슈 기록 */
+export type AnalysisHistory = {
+  base_date: string;
+  industry_kw: string | null;
+  theme_kw: string | null;
+  issue_kw: string | null;
+  issue_note: string | null;
+  related: string | null;
+  refs: ArticleRef[];
+};
+
+/** 급등 캘린더 배경에 깔 그날의 지수 등락 */
+export type DailyIndex = {
+  base_date: string;
+  kospiClose: number | null;
+  kospiChangePct: number | null;
 };
 
 export type CalendarRow = {

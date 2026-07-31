@@ -2,6 +2,7 @@ import DatePicker from "@/components/DatePicker";
 import MacroBoard from "@/components/MacroBoard";
 import MarketHeader from "@/components/MarketHeader";
 import MoversTable from "@/components/MoversTable";
+import FlowSignals from "@/components/FlowSignals";
 import {
   CommentarySections,
   SectorPanel,
@@ -17,6 +18,7 @@ import {
   getDailyBrief,
   getGlobalIndices,
   getIndexSparklines,
+  getFlowSignals,
 } from "@/lib/queries";
 
 // 데이터는 하루 1회 갱신 → 30분 캐시
@@ -87,7 +89,7 @@ export default async function Page({
     );
   }
 
-  const [macro, commentary, sectors, rows, brief, global, spark] =
+  const [macro, commentary, sectors, rows, brief, global, spark, flows] =
     await Promise.all([
       getMacroBoard(baseDate),
       getCommentary(baseDate),
@@ -96,6 +98,7 @@ export default async function Page({
       getDailyBrief(baseDate),
       getGlobalIndices(baseDate),
       getIndexSparklines(baseDate),
+      getFlowSignals(baseDate),
     ]);
 
   const meta = dates.find((d) => d.base_date === baseDate);
@@ -129,6 +132,7 @@ export default async function Page({
       <SectorPanel rows={sectors} analysis={commentary?.themeAnalysis} />
       <CommentarySections c={commentary} />
       <MoversTable rows={rows} baseDate={baseDate} />
+      <FlowSignals rows={flows} baseDate={baseDate} />
     </div>
   );
 }

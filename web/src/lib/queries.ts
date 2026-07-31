@@ -20,6 +20,9 @@ import type {
   GlobalIndex,
   NewsRow,
   CalendarEvent,
+  FlowSignal,
+  AnalysisHistory,
+  DailyIndex,
 } from "./reportTypes";
 
 /** 카테고리당 최대 종목 수 (STEP 1-3) */
@@ -232,15 +235,15 @@ export async function getMacroBoard(baseDate: string): Promise<{
 export async function getCommentary(
   baseDate: string
 ): Promise<Commentary | null> {
-  // 신세대 우선
   const nu = await supabase
     .from("market_daily_commentary")
     .select("*")
     .eq("report_date", baseDate)
     .maybeSingle();
   if (nu.error) throw new Error(`market_daily_commentary: ${nu.error.message}`);
+  if (!nu.data) return null;
 
-  if (nu.data) {
+  {
     const r = nu.data as Record<string, unknown>;
     return {
       baseDate,
@@ -270,40 +273,6 @@ export async function getCommentary(
     };
   }
 
-  const old = await supabase
-    .from("market_summary")
-    .select("*")
-    .eq("base_date", baseDate)
-    .maybeSingle();
-  if (old.error) throw new Error(`market_summary: ${old.error.message}`);
-  if (!old.data) return null;
-
-  const r = old.data as Record<string, unknown>;
-  return {
-    baseDate,
-    source: "market_summary",
-    headline: (r.headline as string) ?? null,
-    kospiClose: asNum(r.kospi_close),
-    kospiChange: asNum(r.kospi_change),
-    kospiChangePct: asNum(r.kospi_change_pct),
-    kosdaqClose: asNum(r.kosdaq_close),
-    kosdaqChange: asNum(r.kosdaq_change),
-    kosdaqChangePct: asNum(r.kosdaq_change_pct),
-    usdkrw: asNum(r.usdkrw),
-    usdkrwChangePct: asNum(r.usdkrw_change_pct),
-    dxy: asNum(r.dxy),
-    dxyChangePct: asNum(r.dxy_change_pct),
-    sp500: null,
-    sp500ChangePct: null,
-    nasdaq: null,
-    nasdaqChangePct: null,
-    circuitBreaker: Boolean(r.circuit_breaker),
-    overview: (r.overview as string) ?? null,
-    investorFlow: (r.investor_flow as string) ?? null,
-    themeAnalysis: (r.theme_analysis as string) ?? null,
-    insights: Array.isArray(r.insights) ? (r.insights as string[]) : [],
-    additionalInsight: null,
-  };
 }
 
 export async function getSectorPerf(baseDate: string): Promise<SectorPerf[]> {
@@ -394,21 +363,16 @@ const refsOf = (r: Record<string, unknown>): ArticleRef[] => {
 
 /**
  * 카테고리별 상위 20을 각각 뽑아 합치고, 동일 종목은 한 행으로 통합한다.
- * 시세는 daily_movers(= daily_price 이력), 뉴스·키워드는 screening 에서 온다.
- * 둘 중 한쪽만 있는 날짜도 있으므로 양쪽을 합집합으로 처리한다.
+ * 시세는 daily_movers(= daily_price 이력), 뉴스·키워드는 stock_analysis 에서 온다.
  */
 export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
-  const [surge, plunge, swing, bigval, screenRes, analysisRes] =
-    await Promise.all([
-      moversBy(baseDate, "is_surge", "change_rate", false),
-      moversBy(baseDate, "is_plunge", "change_rate", true),
-      moversBy(baseDate, "is_swing", "swing_pct", false),
-      moversBy(baseDate, "is_bigvalue", "trade_value", false),
-      // 구세대 날짜(daily_price 가 없는 7/28·7/29)의 시세·구분값 폴백
-      supabase.from("screening").select("*").eq("base_date", baseDate),
-      supabase.from("stock_analysis").select("*").eq("base_date", baseDate),
-    ]);
-  if (screenRes.error) throw new Error(`screening: ${screenRes.error.message}`);
+  const [surge, plunge, swing, bigval, analysisRes] = await Promise.all([
+    moversBy(baseDate, "is_surge", "change_rate", false),
+    moversBy(baseDate, "is_plunge", "change_rate", true),
+    moversBy(baseDate, "is_swing", "swing_pct", false),
+    moversBy(baseDate, "is_bigvalue", "trade_value", false),
+    supabase.from("stock_analysis").select("*").eq("base_date", baseDate),
+  ]);
   if (analysisRes.error)
     throw new Error(`stock_analysis: ${analysisRes.error.message}`);
 
@@ -446,45 +410,6 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
     });
   }
 
-  // daily_price 가 없는 날짜(구세대)는 screening 이 시세·구분값의 유일한 출처다
-  for (const raw of (screenRes.data ?? []) as Record<string, unknown>[]) {
-    const code = String(raw.code ?? "").trim();
-    if (!code) continue;
-    const existing = byTicker.get(code);
-    if (existing) {
-      if (!existing.category && raw.category)
-        existing.category = raw.category as string;
-      continue;
-    }
-    byTicker.set(code, {
-      rank: 0,
-      ticker: code,
-      name: (raw.name as string) ?? code,
-      market: null,
-      sector: null,
-      category: (raw.category as string) ?? null,
-      open: asNum(raw.open_price),
-      close: asNum(raw.close_price),
-      prevClose: null,
-      changePrice: asNum(raw.change_price),
-      changeRate: asNum(raw.change_pct),
-      swingPct: null,
-      tradeValue: asNum(raw.trade_value),
-      marketCap: null,
-      foreignNetBuy: null,
-      instNetBuy: null,
-      indivNetBuy: null,
-      industryKw: null,
-      themeKw: null,
-      issueKw: null,
-      issueNote: null,
-      related: null,
-      refs: [],
-      hasQuote: false,
-      hasAnalysis: false,
-    });
-  }
-
   // 분석 필드는 stock_analysis 가 단일 출처
   for (const raw of (analysisRes.data ?? []) as Record<string, unknown>[]) {
     const ticker = String(raw.ticker ?? "").trim();
@@ -514,12 +439,13 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
 // ──────────────────────────────────────────────────────────
 
 export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
-  let q = supabase.from("keyword_board").select("*");
+  // keyword_streak = keyword_board + 연속 등장일 + 당일 순위
+  let q = supabase.from("keyword_streak").select("*");
   if (baseDate) q = q.eq("base_date", baseDate);
   const { data, error } = await q
     .order("total_trade_value", { ascending: false, nullsFirst: false })
     .limit(2000);
-  if (error) throw new Error(`keyword_board: ${error.message}`);
+  if (error) throw new Error(`keyword_streak: ${error.message}`);
 
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     base_date: String(r.base_date),
@@ -529,6 +455,8 @@ export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
     avg_change_pct: asNum(r.avg_change_pct),
     total_trade_value: asNum(r.total_trade_value),
     up_n: Number(r.up_n ?? 0),
+    dayRank: Number(r.day_rank ?? 0),
+    streakDays: Number(r.streak_days ?? 1),
     stocks: (Array.isArray(r.stocks) ? r.stocks : []).map(
       (s: Record<string, unknown>) => ({
         name: String(s.name ?? ""),
@@ -538,6 +466,101 @@ export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
       })
     ),
   }));
+}
+
+/** 전일 대비 외국인·기관 순매수 방향이 뒤집힌 종목 */
+export async function getFlowSignals(baseDate: string): Promise<FlowSignal[]> {
+  const { data, error } = await supabase
+    .from("investor_flow_signal")
+    .select("*")
+    .eq("base_date", baseDate)
+    .or("foreign_turn.not.is.null,inst_turn.not.is.null")
+    .order("trade_value", { ascending: false, nullsFirst: false })
+    .limit(30);
+  if (error) throw new Error(`investor_flow_signal: ${error.message}`);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    ticker: String(r.ticker),
+    name: (r.name as string) ?? null,
+    market: (r.market as string) ?? null,
+    changeRate: asNum(r.change_rate),
+    tradeValue: asNum(r.trade_value),
+    foreignNetBuy: asNum(r.foreign_net_buy),
+    instNetBuy: asNum(r.inst_net_buy),
+    indivNetBuy: asNum(r.indiv_net_buy),
+    foreignTurn: (r.foreign_turn as FlowSignal["foreignTurn"]) ?? null,
+    instTurn: (r.inst_turn as FlowSignal["instTurn"]) ?? null,
+  }));
+}
+
+/** 종목 상세용 — 그 종목의 과거 이슈 기록 */
+export async function getAnalysisHistory(
+  ticker: string
+): Promise<AnalysisHistory[]> {
+  const { data, error } = await supabase
+    .from("stock_analysis")
+    .select("*")
+    .eq("ticker", ticker)
+    .order("base_date", { ascending: false })
+    .limit(60);
+  if (error) throw new Error(`stock_analysis(history): ${error.message}`);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    base_date: String(r.base_date),
+    industry_kw: (r.industry_kw as string) ?? null,
+    theme_kw: (r.theme_kw as string) ?? null,
+    issue_kw: (r.issue_kw as string) ?? null,
+    issue_note: (r.issue_note as string) ?? null,
+    related: (r.related as string) ?? null,
+    refs: refsOf(r),
+  }));
+}
+
+/** 급등 캘린더 배경용 — 날짜별 KOSPI 종가·등락률 */
+export async function getDailyIndexMap(): Promise<Map<string, DailyIndex>> {
+  const [macroRes, newRes] = await Promise.all([
+    supabase
+      .from("macro_daily")
+      .select("date,kospi")
+      .not("kospi", "is", null)
+      .order("date", { ascending: true })
+      .limit(2000),
+    supabase
+      .from("market_daily_commentary")
+      .select("report_date,kospi_close,kospi_change"),
+  ]);
+  if (macroRes.error) throw new Error(`macro_daily(kospi): ${macroRes.error.message}`);
+  if (newRes.error)
+    throw new Error(`market_daily_commentary(idx): ${newRes.error.message}`);
+
+  const out = new Map<string, DailyIndex>();
+
+  // 1순위 — 수집기가 채운 KOSPI 시계열. 등락률은 직전 값과 비교해 계산한다.
+  const macro = (macroRes.data ?? []) as Record<string, unknown>[];
+  let prev: number | null = null;
+  for (const r of macro) {
+    const v = asNum(r.kospi);
+    if (v == null) continue;
+    out.set(String(r.date), {
+      base_date: String(r.date),
+      kospiClose: v,
+      kospiChangePct:
+        prev != null && prev !== 0 ? ((v - prev) / prev) * 100 : null,
+    });
+    prev = v;
+  }
+
+  // 2순위 — 시황 테이블에 적힌 종가·등락률로 보완(수집 전 날짜)
+  for (const r of (newRes.data ?? []) as Record<string, unknown>[]) {
+    const d = String(r.report_date);
+    const close = asNum(r.kospi_close);
+    const pct = asNum(r.kospi_change); // 이 테이블의 kospi_change 는 %
+    const existing = out.get(d);
+    if (existing?.kospiChangePct != null) continue;
+    out.set(d, { base_date: d, kospiClose: close, kospiChangePct: pct });
+  }
+
+  return out;
 }
 
 /** FRED 해외지수 — market_daily_commentary 에 값이 없을 때의 대체 소스 */
@@ -596,7 +619,7 @@ export async function getIndexSparklines(
 ): Promise<Record<string, { values: number[]; asOf: string | null }>> {
   const from = shiftDays(baseDate, 183);
 
-  const [macroRes, oldRes, newRes] = await Promise.all([
+  const [macroRes, newRes] = await Promise.all([
     supabase
       .from("macro_daily")
       .select("date,sp500,nasdaqcom,djia,fx_usd_d,dtwexbgs,kospi,kosdaq")
@@ -604,18 +627,12 @@ export async function getIndexSparklines(
       .gte("date", from)
       .order("date", { ascending: true }),
     supabase
-      .from("market_summary")
-      .select("base_date,kospi_close,kosdaq_close")
-      .lte("base_date", baseDate)
-      .order("base_date", { ascending: true }),
-    supabase
       .from("market_daily_commentary")
       .select("report_date,kospi_close,kosdaq_close")
       .lte("report_date", baseDate)
       .order("report_date", { ascending: true }),
   ]);
   if (macroRes.error) throw new Error(`macro_daily(spark): ${macroRes.error.message}`);
-  if (oldRes.error) throw new Error(`market_summary(spark): ${oldRes.error.message}`);
   if (newRes.error)
     throw new Error(`market_daily_commentary(spark): ${newRes.error.message}`);
 
@@ -657,11 +674,6 @@ export async function getIndexSparklines(
     }
 
     const byDate = new Map<string, number>();
-    for (const r of (oldRes.data ?? []) as Record<string, unknown>[]) {
-      const v = asNum(r[cmtCol]);
-      if (v != null) byDate.set(String(r.base_date), v);
-    }
-    // 신세대가 같은 날짜를 가지면 신세대 값으로 덮는다
     for (const r of (newRes.data ?? []) as Record<string, unknown>[]) {
       const v = asNum(r[cmtCol]);
       if (v != null) byDate.set(String(r.report_date), v);

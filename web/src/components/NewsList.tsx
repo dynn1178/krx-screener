@@ -72,7 +72,7 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
               onClick={() => setScope(k)}
               className={`rounded px-2.5 py-1 text-[13px] font-medium transition ${
                 scope === k
-                  ? "bg-[var(--fg)] text-white"
+                  ? "bg-[var(--fg)] text-[var(--bg)]"
                   : "text-[var(--fg-subtle)] hover:text-[var(--fg)]"
               }`}
             >

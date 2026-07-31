@@ -41,13 +41,25 @@ function buildMonth(ym: string) {
   return { y, m, cells };
 }
 
+/** 지수 등락 강도 → 셀 배경. 개별 종목 급등이 시장 흐름인지 역행인지 구분하는 배경. */
+function indexTint(pct: number | null | undefined): string | undefined {
+  if (pct == null) return undefined;
+  const a = Math.min(Math.abs(pct) / 5, 1);
+  if (a < 0.12) return undefined;
+  const c = pct > 0 ? "var(--up)" : "var(--down)";
+  return `color-mix(in srgb, ${c} ${Math.round(a * 16)}%, transparent)`;
+}
+
 export default function SurgeCalendar({
   rows,
   months,
+  indexMap,
 }: {
   rows: KeywordRow[];
   /** 표시할 달 목록 (YYYY-MM, 최신순) */
   months: string[];
+  /** 날짜 → KOSPI 등락률 */
+  indexMap: Record<string, { kospiClose: number | null; kospiChangePct: number | null }>;
 }) {
   const [kind, setKind] = useState<Kind>("theme");
   const [kwSort, setKwSort] = useState<KeywordSort>("value");
@@ -91,7 +103,7 @@ export default function SurgeCalendar({
               onClick={() => setKind(k.key)}
               className={`rounded-md px-3 py-1.5 text-[13px] font-semibold transition ${
                 kind === k.key
-                  ? "bg-[var(--fg)] text-white"
+                  ? "bg-[var(--fg)] text-[var(--bg)]"
                   : "text-[var(--fg-subtle)] hover:text-[var(--fg)]"
               }`}
             >
@@ -179,13 +191,15 @@ export default function SurgeCalendar({
 
                   const day = Number(iso.slice(8, 10));
                   const list = byDate.get(iso) ?? [];
+                  const idx = indexMap[iso];
 
                   return (
                     <div
                       key={i}
                       className="min-h-[128px] border-b border-r border-[var(--line)] p-1.5"
+                      style={{ background: indexTint(idx?.kospiChangePct) }}
                     >
-                      <div className="flex items-baseline justify-between">
+                      <div className="flex items-baseline justify-between gap-1">
                         <span
                           className={`text-[13px] font-semibold tabular ${
                             list.length ? "text-[var(--fg)]" : "text-[var(--fg-subtle)]"
@@ -193,6 +207,15 @@ export default function SurgeCalendar({
                         >
                           {day}
                         </span>
+                        {/* 그날 시장 전체가 어디로 갔는지 */}
+                        {idx?.kospiChangePct != null && (
+                          <span
+                            className={`text-[11px] font-bold tabular ${trend(idx.kospiChangePct)}`}
+                            title={`KOSPI ${idx.kospiClose ?? ""} (${pct2(idx.kospiChangePct)})`}
+                          >
+                            KOSPI {pct2(idx.kospiChangePct)}
+                          </span>
+                        )}
                         {list.length > 0 && (
                           <Link
                             href={`/?date=${iso}`}
@@ -245,8 +268,10 @@ export default function SurgeCalendar({
 
       <p className="text-[12px] leading-relaxed text-[var(--fg-subtle)]">
         각 날짜에는 그날 스크리닝된 종목들의 키워드를 평균 상승률·누적 거래대금과
-        함께 표시합니다. 주말·휴장일은 제외했고, 뉴스 분석이 없는 날은 비어
-        있습니다. 날짜의 &quot;상세&quot;를 누르면 해당일 리포트로 이동합니다.
+        함께 표시합니다. 셀 배경과 상단의 KOSPI 등락률은 그날 시장 전체가 어디로
+        움직였는지를 나타내며, 키워드 등락률과 비교하면 해당 테마가 시장을
+        따라간 것인지 역행한 것인지 구분할 수 있습니다. 주말·휴장일은 제외했고,
+        뉴스 분석이 없는 날은 비어 있습니다.
       </p>
     </div>
   );

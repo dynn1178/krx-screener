@@ -40,7 +40,8 @@ function Card({ c }: { c: MacroCard }) {
   return (
     <div
       title={tip}
-      className="relative overflow-hidden rounded-lg border p-3"
+      /* 카드 높이를 고정해 카테고리 안에서 줄이 어긋나지 않게 한다 */
+      className="relative flex h-[136px] flex-col overflow-hidden rounded-lg border p-3"
       style={{ borderColor: "var(--line)", background: "var(--card)" }}
     >
       {c.spark.length > 1 && (
@@ -53,10 +54,10 @@ function Card({ c }: { c: MacroCard }) {
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative flex h-full flex-col">
         <div className="flex items-start justify-between gap-1">
           <span
-            className="text-[13px] font-bold leading-tight"
+            className="line-clamp-2 text-[13px] font-bold leading-tight"
             style={{ color: "var(--fg-muted)" }}
           >
             {c.name}
