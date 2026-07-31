@@ -394,14 +394,19 @@ const refsOf = (r: Record<string, unknown>): ArticleRef[] => {
  * 둘 중 한쪽만 있는 날짜도 있으므로 양쪽을 합집합으로 처리한다.
  */
 export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
-  const [surge, plunge, swing, bigval, screenRes] = await Promise.all([
-    moversBy(baseDate, "is_surge", "change_rate", false),
-    moversBy(baseDate, "is_plunge", "change_rate", true),
-    moversBy(baseDate, "is_swing", "swing_pct", false),
-    moversBy(baseDate, "is_bigvalue", "trade_value", false),
-    supabase.from("screening").select("*").eq("base_date", baseDate),
-  ]);
+  const [surge, plunge, swing, bigval, screenRes, analysisRes] =
+    await Promise.all([
+      moversBy(baseDate, "is_surge", "change_rate", false),
+      moversBy(baseDate, "is_plunge", "change_rate", true),
+      moversBy(baseDate, "is_swing", "swing_pct", false),
+      moversBy(baseDate, "is_bigvalue", "trade_value", false),
+      // 구세대 날짜(daily_price 가 없는 7/28·7/29)의 시세·구분값 폴백
+      supabase.from("screening").select("*").eq("base_date", baseDate),
+      supabase.from("stock_analysis").select("*").eq("base_date", baseDate),
+    ]);
   if (screenRes.error) throw new Error(`screening: ${screenRes.error.message}`);
+  if (analysisRes.error)
+    throw new Error(`stock_analysis: ${analysisRes.error.message}`);
 
   const byTicker = new Map<string, ReportRow>();
 
@@ -437,12 +442,52 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
     });
   }
 
-  // screening 으로 분석 필드 보강 + 시세가 없는 날짜는 screening 자체가 행이 된다
+  // daily_price 가 없는 날짜(구세대)는 screening 이 시세·구분값의 유일한 출처다
   for (const raw of (screenRes.data ?? []) as Record<string, unknown>[]) {
     const code = String(raw.code ?? "").trim();
     if (!code) continue;
     const existing = byTicker.get(code);
-    const analysis = {
+    if (existing) {
+      if (!existing.category && raw.category)
+        existing.category = raw.category as string;
+      continue;
+    }
+    byTicker.set(code, {
+      rank: 0,
+      ticker: code,
+      name: (raw.name as string) ?? code,
+      market: null,
+      sector: null,
+      category: (raw.category as string) ?? null,
+      open: asNum(raw.open_price),
+      close: asNum(raw.close_price),
+      prevClose: null,
+      changePrice: asNum(raw.change_price),
+      changeRate: asNum(raw.change_pct),
+      swingPct: null,
+      tradeValue: asNum(raw.trade_value),
+      marketCap: null,
+      foreignNetBuy: null,
+      instNetBuy: null,
+      indivNetBuy: null,
+      industryKw: null,
+      themeKw: null,
+      issueKw: null,
+      issueNote: null,
+      related: null,
+      refs: [],
+      hasQuote: false,
+      hasAnalysis: false,
+    });
+  }
+
+  // 분석 필드는 stock_analysis 가 단일 출처
+  for (const raw of (analysisRes.data ?? []) as Record<string, unknown>[]) {
+    const ticker = String(raw.ticker ?? "").trim();
+    if (!ticker) continue;
+    const row = byTicker.get(ticker);
+    if (!row) continue; // 스크리닝에 안 걸린 종목의 분석은 표에 넣지 않는다
+    Object.assign(row, {
       industryKw: (raw.industry_kw as string) ?? null,
       themeKw: (raw.theme_kw as string) ?? null,
       issueKw: (raw.issue_kw as string) ?? null,
@@ -450,34 +495,7 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
       related: (raw.related as string) ?? null,
       refs: refsOf(raw),
       hasAnalysis: true,
-    };
-    if (existing) {
-      Object.assign(existing, analysis);
-      if (!existing.category && raw.category)
-        existing.category = raw.category as string;
-    } else {
-      byTicker.set(code, {
-        rank: 0,
-        ticker: code,
-        name: (raw.name as string) ?? code,
-        market: null,
-        sector: null,
-        category: (raw.category as string) ?? null,
-        open: asNum(raw.open_price),
-        close: asNum(raw.close_price),
-        prevClose: null,
-        changePrice: asNum(raw.change_price),
-        changeRate: asNum(raw.change_pct),
-        swingPct: null,
-        tradeValue: asNum(raw.trade_value),
-        marketCap: null,
-        foreignNetBuy: null,
-        instNetBuy: null,
-        indivNetBuy: null,
-        ...analysis,
-        hasQuote: false,
-      });
-    }
+    });
   }
 
   const rows = [...byTicker.values()].sort(

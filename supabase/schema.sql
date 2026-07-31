@@ -289,6 +289,27 @@ create table if not exists daily_brief (
   updated_at timestamptz not null default now()
 );
 
+-- 종목별 뉴스·키워드 분석 (STEP 2 산출물).
+-- screening 은 시세와 분석이 섞여 있고 구세대 파이프라인에 묶여 있어 분리했다.
+-- 매일 선정된 종목 전체를 이 테이블에 적재하면 웹의 스크리닝 표·키워드보드가 채워진다.
+create table if not exists stock_analysis (
+  base_date   date not null,
+  ticker      text not null,
+  name        text,
+  industry_kw text,          -- 핵심 사업 아이템 1개
+  theme_kw    text,          -- 시장이 묶어 부르는 흐름 1개
+  issue_kw    text,          -- 그날의 구체적 트리거 1개
+  issue_note  text,          -- 상승/하락 이유 1~2문장
+  related     text,          -- 동일 테마·섹터 연관 종목 3~5개
+  ref_link1   text, ref_title1 text,
+  ref_link2   text, ref_title2 text,
+  ref_link3   text, ref_title3 text,
+  source      text not null default 'mcp',
+  updated_at  timestamptz not null default now(),
+  primary key (base_date, ticker)
+);
+create index if not exists idx_stock_analysis_date on stock_analysis (base_date desc);
+
 -- 뉴스 (STEP 2 의 get_korean_stock_news / get_market_news 결과)
 create table if not exists news (
   id           bigserial primary key,
@@ -408,10 +429,31 @@ select
 from daily_movers
 group by base_date;
 
--- 키워드보드 — 평균등락률·누적거래대금·종목상세를 함께 내려준다
+-- 키워드보드 — stock_analysis 의 키워드 × 시세를 조인해 집계.
+-- 시세는 daily_quote 우선, 없으면(구세대 날짜) screening 값으로 보완한다.
 drop view if exists keyword_board;
 create view keyword_board
 with (security_invoker = on) as
+with joined as (
+  select
+    a.base_date, a.ticker,
+    coalesce(a.name, q.name, s.name)       as name,
+    coalesce(q.change_rate, s.change_pct)  as change_pct,
+    coalesce(q.trade_value, s.trade_value) as trade_value,
+    a.theme_kw, a.industry_kw, a.issue_kw
+  from stock_analysis a
+  left join daily_quote q on q.base_date = a.base_date and q.ticker = a.ticker
+  left join screening   s on s.base_date = a.base_date and btrim(s.code) = a.ticker
+),
+unpivot as (
+  select base_date, ticker, name, change_pct, trade_value,
+         k.kind, btrim(k.keyword) as keyword
+  from joined
+  cross join lateral (values
+    ('theme', theme_kw), ('industry', industry_kw), ('issue', issue_kw)
+  ) as k(kind, keyword)
+  where coalesce(btrim(k.keyword), '') <> ''
+)
 select
   base_date, kind, keyword,
   count(*)::int                               as mentions,
@@ -420,23 +462,11 @@ select
   count(*) filter (where change_pct > 0)::int as up_n,
   jsonb_agg(
     jsonb_build_object(
-      'name', name, 'code', code,
+      'name', name, 'code', ticker,
       'change_pct', change_pct, 'trade_value', trade_value
     ) order by trade_value desc nulls last
   ) as stocks
-from (
-  select base_date, name, code, change_pct, trade_value,
-         'theme'::text as kind, btrim(theme_kw) as keyword
-    from screening where coalesce(btrim(theme_kw), '') <> ''
-  union all
-  select base_date, name, code, change_pct, trade_value,
-         'industry', btrim(industry_kw)
-    from screening where coalesce(btrim(industry_kw), '') <> ''
-  union all
-  select base_date, name, code, change_pct, trade_value,
-         'issue', btrim(issue_kw)
-    from screening where coalesce(btrim(issue_kw), '') <> ''
-) t
+from unpivot
 group by base_date, kind, keyword;
 
 -- 날짜 선택기용 — 어떤 날짜에 어떤 콘텐츠가 있는지
@@ -480,6 +510,7 @@ alter table stock_fundamentals      enable row level security;
 alter table daily_brief             enable row level security;
 alter table news                    enable row level security;
 alter table market_calendar         enable row level security;
+alter table stock_analysis          enable row level security;
 
 do $$
 declare t text;
@@ -488,7 +519,8 @@ begin
     'stocks', 'daily_price', 'daily_fundamental', 'snapshot',
     'macro_series', 'macro_daily', 'trading_days', 'screening',
     'market_summary', 'market_daily_commentary', 'sector_performance',
-    'fx_rates', 'stock_fundamentals', 'daily_brief', 'news', 'market_calendar'
+    'fx_rates', 'stock_fundamentals', 'daily_brief', 'news', 'market_calendar',
+    'stock_analysis'
   ] loop
     execute format('drop policy if exists "public read %1$s" on %1$I', t);
     execute format('create policy "public read %1$s" on %1$I for select using (true)', t);
