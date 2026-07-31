@@ -89,17 +89,40 @@ def compute_derived(all_rows):
             })
     return derived_rows
 
-def upsert_values(rows):
-    for i in range(0, len(rows), 500):
-        supabase.table("macro_values").upsert(rows[i:i+500], on_conflict="series_id,date").execute()
+# ── 저장 함수 (wide 포맷으로 변경됨) ──────────────────────────
+
+def pivot_and_upsert(all_rows):
+    df = pd.DataFrame(all_rows)
+    if df.empty:
+        print("수집된 데이터 없음")
+        return
+
+    df["series_id"] = df["series_id"].str.lower()
+    wide = df.pivot_table(index="date", columns="series_id", values="value", aggfunc="last")
+    wide = wide.reset_index()
+
+    records = []
+    for _, row in wide.iterrows():
+        record = {"date": row["date"], "updated_at": pd.Timestamp.now().isoformat()}
+        for col in wide.columns:
+            if col == "date":
+                continue
+            val = row[col]
+            if pd.notna(val):
+                record[col] = float(val)
+        records.append(record)
+
+    for i in range(0, len(records), 500):
+        supabase.table("macro_daily").upsert(records[i:i+500], on_conflict="date").execute()
+
+# ── 실행 ──────────────────────────────────────────────
 
 if __name__ == "__main__":
     fred_rows = collect_fred()
     ecos_rows = collect_ecos()
     base_rows = fred_rows + ecos_rows
-
     derived_rows = compute_derived(base_rows)
-
     all_rows = base_rows + derived_rows
-    upsert_values(all_rows)
-    print(f"적재 완료: 원본 {len(base_rows)}건 + 파생 {len(derived_rows)}건 = 총 {len(all_rows)}건")
+
+    pivot_and_upsert(all_rows)
+    print(f"적재 완료: {len(all_rows)}건 → macro_daily 테이블로 pivot 저장")
