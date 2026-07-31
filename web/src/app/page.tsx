@@ -1,8 +1,12 @@
-import DateSwitcher from "@/components/DateSwitcher";
+import DatePicker from "@/components/DatePicker";
 import MacroBoard from "@/components/MacroBoard";
 import MarketHeader from "@/components/MarketHeader";
 import MoversTable from "@/components/MoversTable";
-import { CommentarySections, SectorBars, BriefPanel } from "@/components/Commentary";
+import {
+  CommentarySections,
+  SectorPanel,
+  BriefPanel,
+} from "@/components/Commentary";
 import {
   getReportDates,
   resolveBaseDate,
@@ -12,17 +16,25 @@ import {
   getFxRates,
   getReportRows,
   getDailyBrief,
+  getGlobalIndices,
 } from "@/lib/queries";
-import { dateKo } from "@/lib/format";
 
 // 데이터는 하루 1회 갱신 → 30분 캐시
 export const revalidate = 1800;
 
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
+function Notice({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
       <h2 className="text-base font-semibold text-amber-900">{title}</h2>
-      <div className="mt-2 text-sm leading-relaxed text-amber-800">{children}</div>
+      <div className="mt-2 text-sm leading-relaxed text-amber-800">
+        {children}
+      </div>
     </div>
   );
 }
@@ -58,13 +70,14 @@ export default async function Page({
     );
   }
 
+  const dateList = dates.map((d) => d.base_date);
   const { baseDate, requestedMissing } = resolveBaseDate(dates, requested);
 
   // STEP 0 — 지정한 날짜에 데이터가 없으면 임의로 옮기지 않고 그 사실만 알린다
   if (requestedMissing || !baseDate) {
     return (
       <div className="space-y-4">
-        <DateSwitcher dates={dates} current={dates[0].base_date} />
+        <DatePicker dates={dateList} current={dates[0].base_date} />
         <Notice title={`${requested} 데이터가 없습니다`}>
           휴장일이거나 아직 수집되지 않은 날짜입니다. 임의로 다른 날짜로
           이동하지 않습니다. 가장 최근 거래일은{" "}
@@ -74,29 +87,26 @@ export default async function Page({
     );
   }
 
-  const [macro, commentary, sectors, fx, rows, brief] = await Promise.all([
-    getMacroBoard(baseDate),
-    getCommentary(baseDate),
-    getSectorPerf(baseDate),
-    getFxRates(baseDate),
-    getReportRows(baseDate),
-    getDailyBrief(baseDate),
-  ]);
+  const [macro, commentary, sectors, fx, rows, brief, global] =
+    await Promise.all([
+      getMacroBoard(baseDate),
+      getCommentary(baseDate),
+      getSectorPerf(baseDate),
+      getFxRates(baseDate),
+      getReportRows(baseDate),
+      getDailyBrief(baseDate),
+      getGlobalIndices(baseDate),
+    ]);
 
   const meta = dates.find((d) => d.base_date === baseDate);
 
   return (
     <div className="space-y-7">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[19px] font-bold tracking-tight">
           일별 시장 리포트
         </h1>
-        <span className="rounded bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white tabular">
-          {dateKo(baseDate)}
-        </span>
-        <div className="ml-auto">
-          <DateSwitcher dates={dates} current={baseDate} />
-        </div>
+        <DatePicker dates={dateList} current={baseDate} />
       </div>
 
       {meta && !meta.has_commentary && !meta.has_summary && (
@@ -106,6 +116,8 @@ export default async function Page({
         </p>
       )}
 
+      <MarketHeader c={commentary} fx={fx} global={global} />
+
       <MacroBoard
         cards={macro.cards}
         updatedAt={macro.updatedAt}
@@ -114,9 +126,8 @@ export default async function Page({
       />
 
       <BriefPanel brief={brief} />
-      <MarketHeader c={commentary} fx={fx} />
+      <SectorPanel rows={sectors} analysis={commentary?.themeAnalysis} />
       <CommentarySections c={commentary} />
-      <SectorBars rows={sectors} />
       <MoversTable rows={rows} baseDate={baseDate} />
     </div>
   );

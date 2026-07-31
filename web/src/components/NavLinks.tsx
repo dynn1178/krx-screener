@@ -7,6 +7,8 @@ const LINKS = [
   { href: "/", label: "일별 리포트" },
   { href: "/keywords", label: "키워드보드" },
   { href: "/calendar", label: "급등 캘린더" },
+  { href: "/news", label: "뉴스" },
+  { href: "/schedule", label: "증시 캘린더" },
   { href: "/screener", label: "조건 스크리너" },
 ];
 

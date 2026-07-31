@@ -150,6 +150,10 @@ create table if not exists macro_daily (
   ccsi_travel_m          numeric,
   bsi_actual_m           numeric,
   bsi_forecast_m         numeric,
+  -- 해외지수 (FRED, 종가 기준이라 1일 지연)
+  sp500                  numeric,
+  nasdaqcom              numeric,
+  djia                   numeric,
   -- 파생
   m2_total_yoy_m         numeric,
   updated_at             timestamptz default now()
@@ -213,8 +217,18 @@ create table if not exists market_summary (
 -- 서술형 시황 (신세대) — 컬럼명이 다르므로 웹앱이 두 테이블을 통합해서 읽는다
 create table if not exists market_daily_commentary (
   report_date           date primary key,
-  kospi_change          numeric,
-  kosdaq_change         numeric,
+  kospi_change          numeric,   -- % (포인트가 아님)
+  kosdaq_change         numeric,   -- %
+  kospi_close           numeric,
+  kospi_change_pt       numeric,   -- 포인트
+  kosdaq_close          numeric,
+  kosdaq_change_pt      numeric,
+  usdkrw                numeric,
+  usdkrw_change_pct     numeric,
+  sp500_close           numeric,
+  sp500_change_pct      numeric,
+  nasdaq_close          numeric,
+  nasdaq_change_pct     numeric,
   market_overview       text,
   investor_trend        text,
   sector_theme_analysis text,
@@ -274,6 +288,46 @@ create table if not exists daily_brief (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- 뉴스 (STEP 2 의 get_korean_stock_news / get_market_news 결과)
+create table if not exists news (
+  id           bigserial primary key,
+  base_date    date not null,
+  published_at timestamptz,
+  title        text not null,
+  url          text not null,
+  press        text,
+  summary      text,
+  tickers      text[] not null default '{}',
+  stock_names  text[] not null default '{}',
+  theme_kw     text,
+  issue_kw     text,
+  sentiment    text check (sentiment in ('positive','negative','neutral')),
+  is_market_wide boolean not null default false,
+  created_at   timestamptz not null default now(),
+  unique (base_date, url)
+);
+create index if not exists idx_news_date    on news (base_date desc, published_at desc);
+create index if not exists idx_news_tickers on news using gin (tickers);
+
+-- 증시 캘린더 — FRED releases / 규칙계산 / DART / 수동입력으로 채운다
+create table if not exists market_calendar (
+  id         bigserial primary key,
+  event_date date not null,
+  kind       text not null,   -- earnings / macro / dividend / ipo / holiday / policy / expiry
+  region     text not null default 'KR' check (region in ('KR','US','GLOBAL')),
+  title      text not null,
+  ticker     text,
+  detail     text,
+  importance smallint not null default 1 check (importance between 1 and 3),
+  source     text,            -- FRED / DART / RULE / MANUAL
+  source_url text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_market_calendar_date on market_calendar (event_date);
+-- 표현식은 테이블 제약에 못 쓰므로 유니크 인덱스로
+create unique index if not exists uq_market_calendar_event
+  on market_calendar (event_date, kind, title, coalesce(ticker, ''));
 
 -- ══════════════════════════════════════════════════════════════
 -- 뷰 — 웹앱은 이 네 개만 읽는다
@@ -354,23 +408,34 @@ select
 from daily_movers
 group by base_date;
 
--- 키워드보드
-create or replace view keyword_board
+-- 키워드보드 — 평균등락률·누적거래대금·종목상세를 함께 내려준다
+drop view if exists keyword_board;
+create view keyword_board
 with (security_invoker = on) as
 select
   base_date, kind, keyword,
-  count(*)::int                as mentions,
-  array_agg(name order by rnk) as stocks,
-  array_agg(code order by rnk) as codes
+  count(*)::int                               as mentions,
+  round(avg(change_pct), 2)                   as avg_change_pct,
+  sum(trade_value)                            as total_trade_value,
+  count(*) filter (where change_pct > 0)::int as up_n,
+  jsonb_agg(
+    jsonb_build_object(
+      'name', name, 'code', code,
+      'change_pct', change_pct, 'trade_value', trade_value
+    ) order by trade_value desc nulls last
+  ) as stocks
 from (
-  select base_date, rank as rnk, name, code, 'theme'::text as kind, btrim(theme_kw) as keyword
+  select base_date, name, code, change_pct, trade_value,
+         'theme'::text as kind, btrim(theme_kw) as keyword
     from screening where coalesce(btrim(theme_kw), '') <> ''
   union all
-  select base_date, rank, name, code, 'issue',    btrim(issue_kw)
-    from screening where coalesce(btrim(issue_kw), '') <> ''
-  union all
-  select base_date, rank, name, code, 'industry', btrim(industry_kw)
+  select base_date, name, code, change_pct, trade_value,
+         'industry', btrim(industry_kw)
     from screening where coalesce(btrim(industry_kw), '') <> ''
+  union all
+  select base_date, name, code, change_pct, trade_value,
+         'issue', btrim(issue_kw)
+    from screening where coalesce(btrim(issue_kw), '') <> ''
 ) t
 group by base_date, kind, keyword;
 
@@ -413,6 +478,8 @@ alter table sector_performance      enable row level security;
 alter table fx_rates                enable row level security;
 alter table stock_fundamentals      enable row level security;
 alter table daily_brief             enable row level security;
+alter table news                    enable row level security;
+alter table market_calendar         enable row level security;
 
 do $$
 declare t text;
@@ -421,7 +488,7 @@ begin
     'stocks', 'daily_price', 'daily_fundamental', 'snapshot',
     'macro_series', 'macro_daily', 'trading_days', 'screening',
     'market_summary', 'market_daily_commentary', 'sector_performance',
-    'fx_rates', 'stock_fundamentals', 'daily_brief'
+    'fx_rates', 'stock_fundamentals', 'daily_brief', 'news', 'market_calendar'
   ] loop
     execute format('drop policy if exists "public read %1$s" on %1$I', t);
     execute format('create policy "public read %1$s" on %1$I for select using (true)', t);

@@ -18,6 +18,8 @@ FRED_SERIES = {
     "T10Y2Y": "장단기금리차", "DEXKOUS": "원달러환율(FRED)", "DTWEXBGS": "달러인덱스",
     "DCOILWTICO": "WTI유가", "VIXCLS": "VIX지수", "USSLIND": "미선행지수",
     "UMCSENT": "미시간소비자심리", "CPIAUCSL": "미CPI", "UNRATE": "미실업률",
+    # 해외지수 — 시장 개요와 매크로 보드에 함께 표시
+    "SP500": "S&P 500", "NASDAQCOM": "나스닥종합", "DJIA": "다우존스",
 }
 
 ECOS_SERIES = {

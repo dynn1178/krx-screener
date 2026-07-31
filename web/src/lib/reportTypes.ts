@@ -30,11 +30,9 @@ export type MacroCard = {
   unit: string;
   desc: string | null;
   unitDesc: string | null;
-  /** BASE_DATE 시점의 값 */
   value: number | null;
   /** 값이 마지막으로 실제로 바뀐 날 — 월간 지표의 "발표 시점" */
   effectiveDate: string | null;
-  /** 갱신주기 기준 직전 값 */
   prev: number | null;
   change: number | null;
   changePct: number | null;
@@ -60,12 +58,25 @@ export type Commentary = {
   usdkrwChangePct: number | null;
   dxy: number | null;
   dxyChangePct: number | null;
+  sp500: number | null;
+  sp500ChangePct: number | null;
+  nasdaq: number | null;
+  nasdaqChangePct: number | null;
   circuitBreaker: boolean;
   overview: string | null;
   investorFlow: string | null;
   themeAnalysis: string | null;
   insights: string[];
   additionalInsight: string | null;
+};
+
+/** macro_daily 에서 뽑은 해외지수 (FRED, 하루 지연) */
+export type GlobalIndex = {
+  key: string;
+  name: string;
+  value: number | null;
+  changePct: number | null;
+  asOf: string | null;
 };
 
 export type SectorPerf = {
@@ -89,6 +100,7 @@ export type ReportRow = {
   market: string | null;
   sector: string | null;
   category: string | null;
+  open: number | null;
   close: number | null;
   prevClose: number | null;
   changePrice: number | null;
@@ -105,9 +117,7 @@ export type ReportRow = {
   issueNote: string | null;
   related: string | null;
   refs: ArticleRef[];
-  /** 시세 실측이 있는지 (daily_movers 매칭) */
   hasQuote: boolean;
-  /** 뉴스·키워드 분석이 있는지 (screening 매칭) */
   hasAnalysis: boolean;
 };
 
@@ -121,13 +131,22 @@ export type DailyBrief = {
   sources: { title?: string; url?: string; date?: string }[];
 };
 
+export type KeywordStock = {
+  name: string;
+  code: string;
+  change_pct: number | null;
+  trade_value: number | null;
+};
+
 export type KeywordRow = {
   base_date: string;
   kind: "theme" | "issue" | "industry";
   keyword: string;
   mentions: number;
-  stocks: string[];
-  codes: string[];
+  avg_change_pct: number | null;
+  total_trade_value: number | null;
+  up_n: number;
+  stocks: KeywordStock[];
 };
 
 export type CalendarRow = {
@@ -141,5 +160,71 @@ export type CalendarRow = {
   avg_change_rate: number | null;
 };
 
+export type NewsRow = {
+  id: number;
+  base_date: string;
+  published_at: string | null;
+  title: string;
+  url: string;
+  press: string | null;
+  summary: string | null;
+  tickers: string[];
+  stock_names: string[];
+  theme_kw: string | null;
+  issue_kw: string | null;
+  sentiment: "positive" | "negative" | "neutral" | null;
+  is_market_wide: boolean;
+};
+
+export type CalendarEvent = {
+  id: number;
+  event_date: string;
+  kind: string;
+  region: "KR" | "US" | "GLOBAL";
+  title: string;
+  ticker: string | null;
+  detail: string | null;
+  importance: number;
+  source: string | null;
+  source_url: string | null;
+};
+
+/** 종목 클릭 시 이동할 네이버 증권 페이지 */
 export const naverLink = (code: string) =>
-  `https://finance.naver.com/item/main.naver?code=${code}`;
+  `https://stock.naver.com/domestic/stock/${code}/price`;
+
+// ── 화면 공통 정렬/표기 옵션 (키워드보드·급등캘린더 공유) ──
+
+export type KeywordSort = "value" | "change";
+export type StockSort = "value" | "change";
+export type TopN = 0 | 5 | 10 | 15 | 20; // 0 = 전체
+
+export const KEYWORD_SORTS: { key: KeywordSort; label: string }[] = [
+  { key: "value", label: "거래대금 많은순" },
+  { key: "change", label: "상승률 높은순" },
+];
+
+export const TOP_N_OPTIONS: { key: TopN; label: string }[] = [
+  { key: 0, label: "전체 표시" },
+  { key: 5, label: "5개" },
+  { key: 10, label: "10개" },
+  { key: 15, label: "15개" },
+  { key: 20, label: "20개" },
+];
+
+export const sortKeywords = <T extends { avg_change_pct: number | null; total_trade_value: number | null }>(
+  rows: T[],
+  by: KeywordSort
+): T[] =>
+  [...rows].sort((a, b) =>
+    by === "change"
+      ? (b.avg_change_pct ?? -Infinity) - (a.avg_change_pct ?? -Infinity)
+      : (b.total_trade_value ?? -1) - (a.total_trade_value ?? -1)
+  );
+
+export const sortStocks = (rows: KeywordStock[], by: StockSort): KeywordStock[] =>
+  [...rows].sort((a, b) =>
+    by === "change"
+      ? (b.change_pct ?? -Infinity) - (a.change_pct ?? -Infinity)
+      : (b.trade_value ?? -1) - (a.trade_value ?? -1)
+  );

@@ -21,8 +21,8 @@ function Section({
 
 export function CommentarySections({ c }: { c: C | null }) {
   if (!c) return null;
-  const any =
-    c.overview || c.investorFlow || c.themeAnalysis || c.additionalInsight;
+  // 테마·섹터 분석은 SectorPanel 에서 업종 등락과 함께 보여주므로 여기선 뺀다
+  const any = c.overview || c.investorFlow || c.additionalInsight;
   if (!any && !c.insights.length) return null;
 
   return (
@@ -31,7 +31,6 @@ export function CommentarySections({ c }: { c: C | null }) {
       <div className="grid gap-2 lg:grid-cols-2">
         <Section title="시장 개요" body={c.overview} />
         <Section title="투자주체 동향" body={c.investorFlow} />
-        <Section title="테마 · 섹터 분석" body={c.themeAnalysis} />
         <Section title="추가 인사이트" body={c.additionalInsight} />
       </div>
 
@@ -57,47 +56,82 @@ export function CommentarySections({ c }: { c: C | null }) {
   );
 }
 
-export function SectorBars({ rows }: { rows: SectorPerf[] }) {
-  if (!rows.length) return null;
+/**
+ * 5번 — 테마·섹터 변동폭과 인사이트를 한 패널에서 같이 본다.
+ * 업종은 2열 바 차트, 그 아래 서술형 테마 분석을 붙인다.
+ */
+export function SectorPanel({
+  rows,
+  analysis,
+}: {
+  rows: SectorPerf[];
+  analysis?: string | null;
+}) {
+  if (!rows.length && !analysis) return null;
+
   const max = Math.max(...rows.map((r) => Math.abs(r.avg_change_pct)), 1);
+  const best = rows.length ? rows[0] : null;
+  const worst = rows.length ? rows[rows.length - 1] : null;
 
   return (
     <section className="space-y-2">
-      <h2 className="text-[15px] font-bold tracking-tight">업종별 등락</h2>
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-4">
-        <div className="space-y-1.5">
-          {rows.map((r) => {
-            const w = (Math.abs(r.avg_change_pct) / max) * 50;
-            const up = r.avg_change_pct >= 0;
-            return (
-              <div key={r.sector} className="flex items-center gap-2 text-xs">
-                <span className="w-20 shrink-0 truncate text-neutral-600">
-                  {r.sector}
-                </span>
-                <div className="relative h-3.5 flex-1">
-                  <div className="absolute inset-y-0 left-1/2 w-px bg-neutral-200" />
-                  <div
-                    className={`absolute inset-y-0 rounded-sm ${
-                      up ? "bg-rose-500/80" : "bg-blue-500/80"
-                    }`}
-                    style={
-                      up
-                        ? { left: "50%", width: `${w}%` }
-                        : { right: "50%", width: `${w}%` }
-                    }
-                  />
-                </div>
-                <span
-                  className={`w-14 shrink-0 text-right font-semibold tabular ${trend(
-                    r.avg_change_pct
-                  )}`}
+      <div className="flex flex-wrap items-baseline gap-3">
+        <h2 className="text-[15px] font-bold tracking-tight">테마 · 섹터 분석</h2>
+        {best && worst && best.sector !== worst.sector && (
+          <span className="text-[11px] tabular text-neutral-500">
+            최강{" "}
+            <strong className={trend(best.avg_change_pct)}>
+              {best.sector} {pct2(best.avg_change_pct)}
+            </strong>{" "}
+            · 최약{" "}
+            <strong className={trend(worst.avg_change_pct)}>
+              {worst.sector} {pct2(worst.avg_change_pct)}
+            </strong>
+          </span>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)]">
+        {rows.length > 0 && (
+          <div className="grid gap-x-6 gap-y-1 p-4 md:grid-cols-2">
+            {rows.map((r) => {
+              const w = (Math.abs(r.avg_change_pct) / max) * 100;
+              const up = r.avg_change_pct >= 0;
+              return (
+                <div
+                  key={r.sector}
+                  className="relative overflow-hidden rounded border border-[var(--line)] px-3 py-2"
                 >
-                  {pct2(r.avg_change_pct)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                  {/* 변동폭을 배경 막대로 */}
+                  <span
+                    className={`absolute inset-y-0 left-0 ${up ? "bg-rose-50" : "bg-blue-50"}`}
+                    style={{ width: `${w}%` }}
+                  />
+                  <div className="relative flex items-baseline justify-between gap-2">
+                    <span className="truncate text-[12px] font-bold text-neutral-800">
+                      {r.sector}
+                    </span>
+                    <span
+                      className={`shrink-0 text-[12px] font-bold tabular ${trend(r.avg_change_pct)}`}
+                    >
+                      {pct2(r.avg_change_pct)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {analysis && (
+          <div
+            className={`bg-neutral-50/70 px-4 py-3 text-[12px] leading-[1.75] text-neutral-700 ${
+              rows.length ? "border-t border-[var(--line)]" : ""
+            }`}
+          >
+            {analysis}
+          </div>
+        )}
       </div>
     </section>
   );

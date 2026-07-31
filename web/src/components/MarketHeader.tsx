@@ -1,36 +1,68 @@
 import { num, pct2, trend, signed } from "@/lib/format";
-import type { Commentary, FxRate } from "@/lib/reportTypes";
+import type { Commentary, FxRate, GlobalIndex } from "@/lib/reportTypes";
 
-function Stat({
-  label,
-  value,
-  change,
-  changePct,
-  suffix = "",
-}: {
+type Tile = {
   label: string;
+  sub?: string;
   value: number | null;
   change?: number | null;
   changePct?: number | null;
   suffix?: string;
-}) {
-  if (value == null && changePct == null) return null;
-  const dir = changePct ?? change ?? null;
+  accent?: boolean;
+  digits?: number;
+};
+
+function Card({ t }: { t: Tile }) {
+  const dir = t.changePct ?? t.change ?? null;
+  const up = (dir ?? 0) > 0;
+  const down = (dir ?? 0) < 0;
+
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-2">
-      <div className="text-[11px] text-neutral-500">{label}</div>
-      <div className="mt-0.5 text-[17px] font-bold leading-none tabular">
-        {value == null ? "—" : num(value, 2)}
-        {value != null && suffix ? (
-          <span className="ml-0.5 text-[10px] font-normal text-neutral-400">
-            {suffix}
+    <div
+      className={`relative overflow-hidden rounded-lg border bg-[var(--card)] px-3 py-2.5 ${
+        t.accent ? "border-neutral-300" : "border-[var(--line)]"
+      }`}
+    >
+      {/* 등락 방향을 왼쪽 띠로 */}
+      <span
+        className={`absolute inset-y-0 left-0 w-1 ${
+          up ? "bg-rose-500" : down ? "bg-blue-500" : "bg-neutral-200"
+        }`}
+      />
+      <div className="pl-1.5">
+        <div className="flex items-baseline gap-1">
+          <span
+            className={`text-[11px] ${t.accent ? "font-bold text-neutral-700" : "text-neutral-500"}`}
+          >
+            {t.label}
           </span>
-        ) : null}
-      </div>
-      <div className={`mt-1 text-[11px] font-semibold tabular ${trend(dir)}`}>
-        {change != null && `${signed(change, 2)} `}
-        {changePct != null && `(${pct2(changePct)})`}
-        {change == null && changePct == null && "—"}
+          {t.sub && (
+            <span className="text-[9px] text-neutral-400">{t.sub}</span>
+          )}
+        </div>
+
+        <div
+          className={`mt-0.5 leading-none tabular ${t.accent ? "text-[20px] font-bold" : "text-[17px] font-bold"}`}
+        >
+          {t.value == null ? (
+            <span className="text-neutral-300">—</span>
+          ) : (
+            num(t.value, t.digits ?? 2)
+          )}
+          {t.value != null && t.suffix && (
+            <span className="ml-0.5 text-[10px] font-normal text-neutral-400">
+              {t.suffix}
+            </span>
+          )}
+        </div>
+
+        <div className={`mt-1 text-[11px] font-semibold tabular ${trend(dir)}`}>
+          {t.change != null && `${signed(t.change, 2)} `}
+          {t.changePct != null && `(${pct2(t.changePct)})`}
+          {t.change == null && t.changePct == null && (
+            <span className="text-neutral-300">—</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -39,11 +71,76 @@ function Stat({
 export default function MarketHeader({
   c,
   fx,
+  global,
 }: {
   c: Commentary | null;
   fx: FxRate[];
+  global: GlobalIndex[];
 }) {
-  if (!c && !fx.length) return null;
+  if (!c && !fx.length && !global.some((g) => g.value != null)) return null;
+
+  const domestic: Tile[] = [
+    {
+      label: "KOSPI",
+      value: c?.kospiClose ?? null,
+      change: c?.kospiChange ?? null,
+      changePct: c?.kospiChangePct ?? null,
+      accent: true,
+    },
+    {
+      label: "KOSDAQ",
+      value: c?.kosdaqClose ?? null,
+      change: c?.kosdaqChange ?? null,
+      changePct: c?.kosdaqChangePct ?? null,
+      accent: true,
+    },
+  ];
+
+  const gmap = new Map(global.map((g) => [g.key, g]));
+  const overseas: Tile[] = [
+    {
+      label: "S&P 500",
+      sub: gmap.get("sp500")?.asOf ?? undefined,
+      value: c?.sp500 ?? gmap.get("sp500")?.value ?? null,
+      changePct: c?.sp500ChangePct ?? gmap.get("sp500")?.changePct ?? null,
+    },
+    {
+      label: "나스닥",
+      sub: gmap.get("nasdaqcom")?.asOf ?? undefined,
+      value: c?.nasdaq ?? gmap.get("nasdaqcom")?.value ?? null,
+      changePct: c?.nasdaqChangePct ?? gmap.get("nasdaqcom")?.changePct ?? null,
+    },
+    {
+      label: "다우존스",
+      sub: gmap.get("djia")?.asOf ?? undefined,
+      value: gmap.get("djia")?.value ?? null,
+      changePct: gmap.get("djia")?.changePct ?? null,
+    },
+  ];
+
+  const others: Tile[] = [
+    {
+      label: "원/달러",
+      value: c?.usdkrw ?? null,
+      changePct: c?.usdkrwChangePct ?? null,
+      suffix: "원",
+    },
+    {
+      label: "달러인덱스",
+      value: c?.dxy ?? null,
+      changePct: c?.dxyChangePct ?? null,
+    },
+    ...fx
+      .filter((f) => !/USD\s*\/?\s*KRW|USDKRW/i.test(f.pair))
+      .slice(0, 2)
+      .map((f) => ({
+        label: f.pair,
+        value: f.rate,
+        changePct: f.change_pct,
+      })),
+  ].filter((t) => t.value != null || t.changePct != null);
+
+  const noGlobal = overseas.every((t) => t.value == null);
 
   return (
     <section className="space-y-2">
@@ -56,7 +153,7 @@ export default function MarketHeader({
         )}
         {c && (
           <span className="ml-auto text-[11px] text-neutral-400">
-            출처 테이블 {c.source}
+            출처 {c.source}
           </span>
         )}
       </div>
@@ -67,42 +164,50 @@ export default function MarketHeader({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat
-          label="KOSPI"
-          value={c?.kospiClose ?? null}
-          change={c?.kospiChange ?? null}
-          changePct={c?.kospiChangePct ?? null}
-        />
-        <Stat
-          label="KOSDAQ"
-          value={c?.kosdaqClose ?? null}
-          change={c?.kosdaqChange ?? null}
-          changePct={c?.kosdaqChangePct ?? null}
-        />
-        <Stat
-          label="원/달러"
-          value={c?.usdkrw ?? null}
-          changePct={c?.usdkrwChangePct ?? null}
-          suffix="원"
-        />
-        <Stat
-          label="달러인덱스"
-          value={c?.dxy ?? null}
-          changePct={c?.dxyChangePct ?? null}
-        />
-        {fx
-          .filter((f) => !/USD\s*\/?\s*KRW|USDKRW/i.test(f.pair))
-          .slice(0, 2)
-          .map((f) => (
-            <Stat
-              key={f.pair}
-              label={f.pair}
-              value={f.rate}
-              changePct={f.change_pct}
-            />
-          ))}
+      <div className="grid gap-2 lg:grid-cols-[2fr_3fr_3fr]">
+        <div>
+          <h3 className="mb-1 text-[10px] font-bold text-neutral-400">국내</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {domestic.map((t) => (
+              <Card key={t.label} t={t} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-1 text-[10px] font-bold text-neutral-400">
+            해외지수 <span className="font-normal">· FRED 종가, 1일 지연</span>
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {overseas.map((t) => (
+              <Card key={t.label} t={t} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-1 text-[10px] font-bold text-neutral-400">
+            환율 · 통화
+          </h3>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {others.length ? (
+              others.map((t) => <Card key={t.label} t={t} />)
+            ) : (
+              <p className="col-span-full rounded-lg border border-dashed border-[var(--line)] px-3 py-4 text-center text-[11px] text-neutral-400">
+                환율 데이터 없음
+              </p>
+            )}
+          </div>
+        </div>
       </div>
+
+      {noGlobal && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          해외지수가 비어 있습니다. <code>collect_macro.py</code> 에 SP500 ·
+          NASDAQCOM · DJIA 를 추가해 뒀으니, GitHub Actions 의 매크로 수집
+          워크플로를 한 번 실행하면 채워집니다.
+        </p>
+      )}
     </section>
   );
 }

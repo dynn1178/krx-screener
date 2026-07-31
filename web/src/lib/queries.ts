@@ -17,6 +17,9 @@ import type {
   KeywordRow,
   CalendarRow,
   ArticleRef,
+  GlobalIndex,
+  NewsRow,
+  CalendarEvent,
 } from "./reportTypes";
 
 /** 카테고리당 최대 종목 수 (STEP 1-3) */
@@ -239,16 +242,21 @@ export async function getCommentary(
       baseDate,
       source: "market_daily_commentary",
       headline: null,
-      kospiClose: null,
-      kospiChange: null,
+      kospiClose: asNum(r.kospi_close),
+      kospiChange: asNum(r.kospi_change_pt),
+      // 이 테이블의 kospi_change 는 포인트가 아니라 % 다
       kospiChangePct: asNum(r.kospi_change),
-      kosdaqClose: null,
-      kosdaqChange: null,
+      kosdaqClose: asNum(r.kosdaq_close),
+      kosdaqChange: asNum(r.kosdaq_change_pt),
       kosdaqChangePct: asNum(r.kosdaq_change),
-      usdkrw: null,
-      usdkrwChangePct: null,
+      usdkrw: asNum(r.usdkrw),
+      usdkrwChangePct: asNum(r.usdkrw_change_pct),
       dxy: null,
       dxyChangePct: null,
+      sp500: asNum(r.sp500_close),
+      sp500ChangePct: asNum(r.sp500_change_pct),
+      nasdaq: asNum(r.nasdaq_close),
+      nasdaqChangePct: asNum(r.nasdaq_change_pct),
       circuitBreaker: Boolean(r.circuit_breaker),
       overview: (r.market_overview as string) ?? null,
       investorFlow: (r.investor_trend as string) ?? null,
@@ -281,6 +289,10 @@ export async function getCommentary(
     usdkrwChangePct: asNum(r.usdkrw_change_pct),
     dxy: asNum(r.dxy),
     dxyChangePct: asNum(r.dxy_change_pct),
+    sp500: null,
+    sp500ChangePct: null,
+    nasdaq: null,
+    nasdaqChangePct: null,
     circuitBreaker: Boolean(r.circuit_breaker),
     overview: (r.overview as string) ?? null,
     investorFlow: (r.investor_flow as string) ?? null,
@@ -343,7 +355,7 @@ export async function getDailyBrief(
 // ──────────────────────────────────────────────────────────
 
 const MOVER_COLS =
-  "ticker,name,market,sector,close,prev_close,change_price,change_rate," +
+  "ticker,name,market,sector,open,close,prev_close,change_price,change_rate," +
   "swing_pct,trade_value,market_cap,foreign_net_buy,inst_net_buy,indiv_net_buy,category";
 
 type MoverRaw = Record<string, unknown>;
@@ -403,6 +415,7 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
       market: (r.market as string) ?? null,
       sector: (r.sector as string) ?? null,
       category: (r.category as string) ?? null,
+      open: asNum(r.open),
       close: asNum(r.close),
       prevClose: asNum(r.prev_close),
       changePrice: asNum(r.change_price),
@@ -450,6 +463,7 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
         market: null,
         sector: null,
         category: (raw.category as string) ?? null,
+        open: asNum(raw.open_price),
         close: asNum(raw.close_price),
         prevClose: null,
         changePrice: asNum(raw.change_price),
@@ -481,10 +495,114 @@ export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
   let q = supabase.from("keyword_board").select("*");
   if (baseDate) q = q.eq("base_date", baseDate);
   const { data, error } = await q
-    .order("mentions", { ascending: false })
-    .limit(1000);
+    .order("total_trade_value", { ascending: false, nullsFirst: false })
+    .limit(2000);
   if (error) throw new Error(`keyword_board: ${error.message}`);
-  return (data ?? []) as KeywordRow[];
+
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    base_date: String(r.base_date),
+    kind: r.kind as KeywordRow["kind"],
+    keyword: String(r.keyword),
+    mentions: Number(r.mentions),
+    avg_change_pct: asNum(r.avg_change_pct),
+    total_trade_value: asNum(r.total_trade_value),
+    up_n: Number(r.up_n ?? 0),
+    stocks: (Array.isArray(r.stocks) ? r.stocks : []).map(
+      (s: Record<string, unknown>) => ({
+        name: String(s.name ?? ""),
+        code: String(s.code ?? "").trim(),
+        change_pct: asNum(s.change_pct),
+        trade_value: asNum(s.trade_value),
+      })
+    ),
+  }));
+}
+
+/** FRED 해외지수 — market_daily_commentary 에 값이 없을 때의 대체 소스 */
+export async function getGlobalIndices(
+  baseDate: string
+): Promise<GlobalIndex[]> {
+  const defs = [
+    { key: "sp500", name: "S&P 500" },
+    { key: "nasdaqcom", name: "나스닥" },
+    { key: "djia", name: "다우존스" },
+  ];
+
+  const { data, error } = await supabase
+    .from("macro_daily")
+    .select("date,sp500,nasdaqcom,djia")
+    .lte("date", baseDate)
+    .gte("date", shiftDays(baseDate, 14))
+    .order("date", { ascending: true });
+  if (error) throw new Error(`macro_daily(indices): ${error.message}`);
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+
+  return defs.map(({ key, name }) => {
+    const pts = rows
+      .map((r) => ({ date: String(r.date), v: asNum(r[key]) }))
+      .filter((p): p is { date: string; v: number } => p.v != null);
+
+    if (!pts.length)
+      return { key, name, value: null, changePct: null, asOf: null };
+
+    const last = pts[pts.length - 1];
+    let prev: number | null = null;
+    for (let i = pts.length - 2; i >= 0; i--) {
+      if (pts[i].v !== last.v) {
+        prev = pts[i].v;
+        break;
+      }
+    }
+    return {
+      key,
+      name,
+      value: last.v,
+      changePct: prev != null && prev !== 0 ? ((last.v - prev) / prev) * 100 : null,
+      asOf: last.date,
+    };
+  });
+}
+
+export async function getNews(baseDate: string): Promise<NewsRow[]> {
+  const { data, error } = await supabase
+    .from("news")
+    .select("*")
+    .eq("base_date", baseDate)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(300);
+  if (error) throw new Error(`news: ${error.message}`);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: Number(r.id),
+    base_date: String(r.base_date),
+    published_at: (r.published_at as string) ?? null,
+    title: String(r.title),
+    url: String(r.url),
+    press: (r.press as string) ?? null,
+    summary: (r.summary as string) ?? null,
+    tickers: Array.isArray(r.tickers) ? (r.tickers as string[]) : [],
+    stock_names: Array.isArray(r.stock_names) ? (r.stock_names as string[]) : [],
+    theme_kw: (r.theme_kw as string) ?? null,
+    issue_kw: (r.issue_kw as string) ?? null,
+    sentiment: (r.sentiment as NewsRow["sentiment"]) ?? null,
+    is_market_wide: Boolean(r.is_market_wide),
+  }));
+}
+
+export async function getCalendarEvents(
+  from: string,
+  to: string
+): Promise<CalendarEvent[]> {
+  const { data, error } = await supabase
+    .from("market_calendar")
+    .select("*")
+    .gte("event_date", from)
+    .lte("event_date", to)
+    .order("event_date", { ascending: true })
+    .order("importance", { ascending: false });
+  if (error) throw new Error(`market_calendar: ${error.message}`);
+  return (data ?? []) as unknown as CalendarEvent[];
 }
 
 export async function getCalendar(limit = 120): Promise<CalendarRow[]> {
