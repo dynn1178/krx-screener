@@ -522,7 +522,11 @@ def build_snapshot(
 # ══════════════════════════════════════════════ 메인
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["daily", "backfill", "master"], default="daily")
+    ap.add_argument(
+        "--mode",
+        choices=["daily", "backfill", "master", "snapshot-backfill"],
+        default="daily",
+    )
     ap.add_argument("--days", type=int, default=400, help="backfill 기간(일)")
     args = ap.parse_args()
 
@@ -577,6 +581,39 @@ def main() -> None:
             sector_index = fetch_sector_index_map(base_date)
 
             build_snapshot(client, base_date, ohlcv, cap, fund, prev_close, investor, sector_index, universe)
+
+        elif args.mode == "snapshot-backfill":
+            # snapshot 은 (date, ticker) 누적이므로 과거 일자도 채울 수 있다.
+            # 하루당 KRX 호출이 6회 안팎이라 daily 보다 훨씬 느리다. 필요한 기간만 지정할 것.
+            sync_master(client, base_date, universe)
+            frm = (
+                datetime.strptime(base_date, "%Y%m%d") - timedelta(days=args.days)
+            ).strftime("%Y%m%d")
+            days = business_days(frm, base_date)
+            log(f"스냅샷 백필 {len(days)}거래일: {days[0]} ~ {days[-1]}")
+
+            for i, d in enumerate(days, 1):
+                try:
+                    if d == base_date:
+                        d_ohlcv, d_cap, d_fund = ohlcv, cap, fund
+                    else:
+                        d_ohlcv, d_cap, d_fund = fetch_day(d)
+
+                    d_universe = compute_universe(d_ohlcv, d_cap)
+                    d_prev = fetch_prev_close(previous_trading_day(d))
+                    d_investor = fetch_investor_net_buy(d)
+                    d_sector_index = fetch_sector_index_map(d)
+
+                    rows += build_snapshot(
+                        client, d, d_ohlcv, d_cap, d_fund,
+                        d_prev, d_investor, d_sector_index, d_universe,
+                    )
+                except Exception as e:
+                    log(f"  {d} 스냅샷 실패, 스킵: {e}")
+                    continue
+
+                log(f"  {i}/{len(days)}  {d}  누적 {rows:,}행")
+                time.sleep(0.5)   # KRX 부하 방지 — 호출이 많아 daily 보다 길게 준다
 
         else:  # daily
             sync_master(client, base_date, universe)

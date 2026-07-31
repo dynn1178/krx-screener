@@ -197,18 +197,37 @@ export default function MacroBoard({
               </span>
             </h3>
 
-            <div className="space-y-3">
+            {/*
+              카테고리마다 행을 통째로 잡으면 지표가 1~2개인 카테고리에서 빈 칸이 크게 남는다.
+              카테고리 라벨을 카드와 같은 흐름에 넣어 좌우로 이어 붙인다.
+            */}
+            <div className="flex flex-wrap items-stretch gap-2.5">
               {[...groups.entries()].map(([cat, items]) => (
-                <div key={cat}>
-                  <h4
-                    className="mb-1.5 text-[12px] font-bold"
-                    style={{ color: "var(--fg-subtle)" }}
+                <div
+                  key={cat}
+                  className="flex items-stretch gap-2.5 rounded-lg border border-dashed p-2"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <div
+                    className="flex w-6 shrink-0 items-center justify-center rounded"
+                    style={{ background: "var(--card)" }}
                   >
-                    {cat} <span className="font-normal">{items.length}</span>
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                    <span
+                      className="whitespace-nowrap text-[12px] font-bold"
+                      style={{
+                        color: "var(--fg-subtle)",
+                        writingMode: "vertical-rl",
+                        textOrientation: "mixed",
+                      }}
+                    >
+                      {cat} {items.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
                     {items.map((c) => (
-                      <Card key={c.seriesId} c={c} />
+                      <div key={c.seriesId} className="w-[168px]">
+                        <Card c={c} />
+                      </div>
                     ))}
                   </div>
                 </div>

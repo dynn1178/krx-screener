@@ -9,10 +9,11 @@ async function getSnapshot(): Promise<Snapshot[]> {
   const rows: Snapshot[] = [];
   const PAGE = 1000;
 
+  // snapshot 은 (date, ticker) 누적이므로 최신 1일치만 보는 뷰를 읽는다.
   // Supabase는 1회 최대 1000행 → 페이지네이션
   for (let from = 0; from < 5000; from += PAGE) {
     const { data, error } = await supabase
-      .from("snapshot")
+      .from("snapshot_latest")
       .select("*")
       .order("market_cap", { ascending: false })
       .range(from, from + PAGE - 1);
