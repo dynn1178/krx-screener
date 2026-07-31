@@ -98,8 +98,19 @@ def pivot_and_upsert(all_rows):
         return
 
     df["series_id"] = df["series_id"].str.lower()
+    df["date"] = pd.to_datetime(df["date"])
+
+    # long → wide 변환
     wide = df.pivot_table(index="date", columns="series_id", values="value", aggfunc="last")
+
+    # 전체 날짜(휴일 포함 매일)로 인덱스 확장 후 직전값으로 채우기
+    full_range = pd.date_range(start=wide.index.min(), end=wide.index.max(), freq="D")
+    wide = wide.reindex(full_range)
+    wide = wide.ffill()   # 휴일 → 직전 영업일값, 월간지표 → 발표일값을 다음 발표일 전까지 매일 반복
+
+    wide.index.name = "date"
     wide = wide.reset_index()
+    wide["date"] = wide["date"].dt.strftime("%Y-%m-%d")
 
     records = []
     for _, row in wide.iterrows():
@@ -114,7 +125,7 @@ def pivot_and_upsert(all_rows):
 
     for i in range(0, len(records), 500):
         supabase.table("macro_daily").upsert(records[i:i+500], on_conflict="date").execute()
-
+        
 # ── 실행 ──────────────────────────────────────────────
 
 if __name__ == "__main__":
