@@ -22,9 +22,9 @@ FRED_SERIES = {
 
 ECOS_SERIES = {
     "RATE_BASE_M": {"stat": "722Y001", "item": "0101000", "cycle": "M"},
-    "FX_USD_D":    {"stat": "731Y006", "item": "0000013", "cycle": "D"},
-    "FX_CNY_D":    {"stat": "731Y006", "item": "0000010", "cycle": "D"},
-    "FX_JPY_D":    {"stat": "731Y006", "item": "0000006", "cycle": "D"},
+    "FX_USD_D": {"stat": "731Y003", "item": "0000013", "cycle": "D"},
+    "FX_CNY_D": {"stat": "731Y003", "item": "0000010", "cycle": "D"},
+    "FX_JPY_D": {"stat": "731Y003", "item": "0000006", "cycle": "D"},
     "M2_TOTAL_M":  {"stat": "161Y005", "item": "BBHS00", "cycle": "M"},
     "CLI_LEADING_M":          {"stat": "901Y067", "item": "I16A", "cycle": "M"},
     "CLI_COINCIDENT_M":       {"stat": "901Y067", "item": "I16B", "cycle": "M"},
