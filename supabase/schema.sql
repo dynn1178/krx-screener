@@ -108,7 +108,7 @@ create table if not exists collect_log (
 -- 지표 메타 — 화면의 카테고리 그룹핑·이름·단위·갱신주기가 여기서 온다
 create table if not exists macro_series (
   series_id text primary key,
-  source    text not null check (source in ('FRED', 'ECOS', 'DERIVED')),
+  source    text not null check (source in ('FRED', 'ECOS', 'DERIVED', 'KRX')),
   stat_code text,
   item_code text,
   name_kr   text not null,
@@ -154,6 +154,9 @@ create table if not exists macro_daily (
   sp500                  numeric,
   nasdaqcom              numeric,
   djia                   numeric,
+  -- 국내지수 (pykrx get_index_ohlcv)
+  kospi                  numeric,
+  kosdaq                 numeric,
   -- 파생
   m2_total_yoy_m         numeric,
   updated_at             timestamptz default now()

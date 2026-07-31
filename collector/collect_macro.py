@@ -1,9 +1,12 @@
 # collector/collect_macro.py
 import os
 import time
+from datetime import datetime
+
 import pandas as pd
 import requests
 from fredapi import Fred
+from pykrx import stock
 from supabase import create_client
 
 FRED_KEY = os.environ["FRED_API_KEY"]
@@ -40,6 +43,12 @@ ECOS_SERIES = {
     "BSI_FORECAST_M": {"stat": "512Y014", "item": "99988", "cycle": "M"},
 }
 
+# 국내지수 — pykrx. 지수 시세는 KRX 로그인 없이 조회된다.
+KRX_INDEX_SERIES = {
+    "KOSPI": "1001",
+    "KOSDAQ": "2001",
+}
+
 DERIVED_SERIES = {
     "M2_TOTAL_YOY_M": {"base": "M2_TOTAL_M", "method": "yoy_pct"},
 }
@@ -54,6 +63,39 @@ def collect_fred():
             if pd.notna(value):
                 rows.append({"series_id": sid, "date": date.strftime("%Y-%m-%d"), "value": float(value)})
     return rows
+
+def collect_krx_indices():
+    """KOSPI/KOSDAQ 지수 종가를 2015-01-01부터 일괄 수집한다."""
+    rows = []
+    frm = "20150101"
+    to = datetime.now().strftime("%Y%m%d")
+
+    for sid, ticker in KRX_INDEX_SERIES.items():
+        df = None
+        for attempt in range(3):
+            try:
+                df = stock.get_index_ohlcv(frm, to, ticker)
+                break
+            except Exception as e:  # KRX 는 간헐적으로 응답이 끊긴다
+                if attempt == 2:
+                    print(f"{sid} 수집 실패: {e}")
+                else:
+                    time.sleep(3 * (attempt + 1))
+
+        if df is None or df.empty or "종가" not in df.columns:
+            continue
+
+        for dt, close in df["종가"].items():
+            if pd.notna(close) and close > 0:
+                rows.append({
+                    "series_id": sid,
+                    "date": dt.strftime("%Y-%m-%d"),
+                    "value": float(close),
+                })
+        print(f"{sid}: {len(df)}건")
+
+    return rows
+
 
 def format_ecos_date(cycle: str, is_start: bool) -> str:
     """ECOS 주기별 날짜 형식 변환"""
@@ -160,7 +202,8 @@ def pivot_and_upsert(all_rows):
 if __name__ == "__main__":
     fred_rows = collect_fred()
     ecos_rows = collect_ecos()
-    base_rows = fred_rows + ecos_rows
+    krx_rows = collect_krx_indices()
+    base_rows = fred_rows + ecos_rows + krx_rows
     derived_rows = compute_derived(base_rows)
     all_rows = base_rows + derived_rows
 

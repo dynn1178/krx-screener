@@ -109,8 +109,13 @@ export default function MacroBoard({
     );
   }
 
+  // 국내·해외지수는 상단 시장 개요에서 스파크라인과 함께 보여주므로 여기선 제외
+  const shown = cards.filter(
+    (c) => c.category !== "해외지수" && c.category !== "국내지수"
+  );
+
   const groups = new Map<string, MacroCard[]>();
-  for (const c of cards) {
+  for (const c of shown) {
     const g = groups.get(c.category) ?? [];
     g.push(c);
     groups.set(c.category, g);
@@ -123,7 +128,7 @@ export default function MacroBoard({
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-[15px] font-bold tracking-tight">매크로 경제지표</h2>
         <span className="text-xs text-neutral-500">
-          FRED · 한국은행 ECOS · {cards.length}개 지표
+          FRED · 한국은행 ECOS · {shown.length}개 지표
         </span>
         <span className="ml-auto text-[11px] text-neutral-400">
           데이터 기준일 {dateKo(dataDate)} · 최종 갱신 {stampKo(updatedAt)}

@@ -17,6 +17,7 @@ import {
   getReportRows,
   getDailyBrief,
   getGlobalIndices,
+  getIndexSparklines,
 } from "@/lib/queries";
 
 // 데이터는 하루 1회 갱신 → 30분 캐시
@@ -87,7 +88,7 @@ export default async function Page({
     );
   }
 
-  const [macro, commentary, sectors, fx, rows, brief, global] =
+  const [macro, commentary, sectors, fx, rows, brief, global, spark] =
     await Promise.all([
       getMacroBoard(baseDate),
       getCommentary(baseDate),
@@ -96,6 +97,7 @@ export default async function Page({
       getReportRows(baseDate),
       getDailyBrief(baseDate),
       getGlobalIndices(baseDate),
+      getIndexSparklines(baseDate),
     ]);
 
   const meta = dates.find((d) => d.base_date === baseDate);
@@ -116,7 +118,7 @@ export default async function Page({
         </p>
       )}
 
-      <MarketHeader c={commentary} fx={fx} global={global} />
+      <MarketHeader c={commentary} fx={fx} global={global} spark={spark} />
 
       <MacroBoard
         cards={macro.cards}

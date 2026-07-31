@@ -1,21 +1,25 @@
+import Sparkline from "./Sparkline";
 import { num, pct2, trend, signed } from "@/lib/format";
 import type { Commentary, FxRate, GlobalIndex } from "@/lib/reportTypes";
 
+export type IndexSpark = { values: number[]; asOf: string | null };
+
 type Tile = {
   label: string;
-  sub?: string;
   value: number | null;
   change?: number | null;
   changePct?: number | null;
   suffix?: string;
   accent?: boolean;
   digits?: number;
+  spark?: IndexSpark;
 };
 
 function Card({ t }: { t: Tile }) {
   const dir = t.changePct ?? t.change ?? null;
   const up = (dir ?? 0) > 0;
   const down = (dir ?? 0) < 0;
+  const values = t.spark?.values ?? [];
 
   return (
     <div
@@ -29,15 +33,29 @@ function Card({ t }: { t: Tile }) {
           up ? "bg-rose-500" : down ? "bg-blue-500" : "bg-neutral-200"
         }`}
       />
-      <div className="pl-1.5">
-        <div className="flex items-baseline gap-1">
+
+      {/* 추이는 카드 하단 배경으로 */}
+      {values.length > 1 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-11 opacity-70">
+          <Sparkline
+            values={values}
+            rising={dir == null || dir === 0 ? null : dir > 0}
+            className="h-full w-full"
+          />
+        </div>
+      )}
+
+      <div className="relative pl-1.5">
+        <div className="flex items-baseline justify-between gap-1">
           <span
             className={`text-[11px] ${t.accent ? "font-bold text-neutral-700" : "text-neutral-500"}`}
           >
             {t.label}
           </span>
-          {t.sub && (
-            <span className="text-[9px] text-neutral-400">{t.sub}</span>
+          {values.length > 1 && (
+            <span className="rounded bg-white/70 px-1 text-[9px] text-neutral-400">
+              {values.length}일
+            </span>
           )}
         </div>
 
@@ -62,6 +80,11 @@ function Card({ t }: { t: Tile }) {
           {t.change == null && t.changePct == null && (
             <span className="text-neutral-300">—</span>
           )}
+          {t.spark?.asOf && (
+            <span className="ml-1 font-normal text-neutral-400">
+              {t.spark.asOf} 기준
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -72,10 +95,12 @@ export default function MarketHeader({
   c,
   fx,
   global,
+  spark,
 }: {
   c: Commentary | null;
   fx: FxRate[];
   global: GlobalIndex[];
+  spark: Record<string, IndexSpark>;
 }) {
   if (!c && !fx.length && !global.some((g) => g.value != null)) return null;
 
@@ -86,6 +111,7 @@ export default function MarketHeader({
       change: c?.kospiChange ?? null,
       changePct: c?.kospiChangePct ?? null,
       accent: true,
+      spark: spark.kospi,
     },
     {
       label: "KOSDAQ",
@@ -93,28 +119,29 @@ export default function MarketHeader({
       change: c?.kosdaqChange ?? null,
       changePct: c?.kosdaqChangePct ?? null,
       accent: true,
+      spark: spark.kosdaq,
     },
   ];
 
   const gmap = new Map(global.map((g) => [g.key, g]));
   const overseas: Tile[] = [
     {
-      label: "S&P 500",
-      sub: gmap.get("sp500")?.asOf ?? undefined,
-      value: c?.sp500 ?? gmap.get("sp500")?.value ?? null,
-      changePct: c?.sp500ChangePct ?? gmap.get("sp500")?.changePct ?? null,
-    },
-    {
-      label: "나스닥",
-      sub: gmap.get("nasdaqcom")?.asOf ?? undefined,
+      label: "나스닥종합",
       value: c?.nasdaq ?? gmap.get("nasdaqcom")?.value ?? null,
       changePct: c?.nasdaqChangePct ?? gmap.get("nasdaqcom")?.changePct ?? null,
+      spark: spark.nasdaqcom,
     },
     {
       label: "다우존스",
-      sub: gmap.get("djia")?.asOf ?? undefined,
       value: gmap.get("djia")?.value ?? null,
       changePct: gmap.get("djia")?.changePct ?? null,
+      spark: spark.djia,
+    },
+    {
+      label: "S&P 500",
+      value: c?.sp500 ?? gmap.get("sp500")?.value ?? null,
+      changePct: c?.sp500ChangePct ?? gmap.get("sp500")?.changePct ?? null,
+      spark: spark.sp500,
     },
   ];
 
@@ -124,11 +151,13 @@ export default function MarketHeader({
       value: c?.usdkrw ?? null,
       changePct: c?.usdkrwChangePct ?? null,
       suffix: "원",
+      spark: spark.usdkrw,
     },
     {
       label: "달러인덱스",
       value: c?.dxy ?? null,
       changePct: c?.dxyChangePct ?? null,
+      spark: spark.dxy,
     },
     ...fx
       .filter((f) => !/USD\s*\/?\s*KRW|USDKRW/i.test(f.pair))

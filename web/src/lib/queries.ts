@@ -582,6 +582,96 @@ export async function getGlobalIndices(
   });
 }
 
+/**
+ * 시장 개요 카드의 배경 스파크라인.
+ * 해외지수·환율은 macro_daily 의 6개월 일별 시계열,
+ * KOSPI/KOSDAQ 는 시황 테이블에 쌓인 종가(거래일 수만큼)를 쓴다.
+ */
+export async function getIndexSparklines(
+  baseDate: string
+): Promise<Record<string, { values: number[]; asOf: string | null }>> {
+  const from = shiftDays(baseDate, 183);
+
+  const [macroRes, oldRes, newRes] = await Promise.all([
+    supabase
+      .from("macro_daily")
+      .select("date,sp500,nasdaqcom,djia,fx_usd_d,dtwexbgs,kospi,kosdaq")
+      .lte("date", baseDate)
+      .gte("date", from)
+      .order("date", { ascending: true }),
+    supabase
+      .from("market_summary")
+      .select("base_date,kospi_close,kosdaq_close")
+      .lte("base_date", baseDate)
+      .order("base_date", { ascending: true }),
+    supabase
+      .from("market_daily_commentary")
+      .select("report_date,kospi_close,kosdaq_close")
+      .lte("report_date", baseDate)
+      .order("report_date", { ascending: true }),
+  ]);
+  if (macroRes.error) throw new Error(`macro_daily(spark): ${macroRes.error.message}`);
+  if (oldRes.error) throw new Error(`market_summary(spark): ${oldRes.error.message}`);
+  if (newRes.error)
+    throw new Error(`market_daily_commentary(spark): ${newRes.error.message}`);
+
+  const out: Record<string, { values: number[]; asOf: string | null }> = {};
+
+  const macroRows = (macroRes.data ?? []) as Record<string, unknown>[];
+  for (const [key, col] of [
+    ["sp500", "sp500"],
+    ["nasdaqcom", "nasdaqcom"],
+    ["djia", "djia"],
+    ["usdkrw", "fx_usd_d"],
+    ["dxy", "dtwexbgs"],
+  ] as const) {
+    const pts = macroRows
+      .map((r) => ({ d: String(r.date), v: asNum(r[col]) }))
+      .filter((p): p is { d: string; v: number } => p.v != null);
+    out[key] = {
+      values: pts.map((p) => p.v),
+      asOf: pts.length ? pts[pts.length - 1].d : null,
+    };
+  }
+
+  // 국내지수는 macro_daily(pykrx 수집분)가 우선.
+  // 아직 수집 전이면 시황 테이블에 쌓인 종가로 대체한다.
+  for (const [key, macroCol, cmtCol] of [
+    ["kospi", "kospi", "kospi_close"],
+    ["kosdaq", "kosdaq", "kosdaq_close"],
+  ] as const) {
+    const fromMacro = macroRows
+      .map((r) => ({ d: String(r.date), v: asNum(r[macroCol]) }))
+      .filter((p): p is { d: string; v: number } => p.v != null);
+
+    if (fromMacro.length > 1) {
+      out[key] = {
+        values: fromMacro.map((p) => p.v),
+        asOf: fromMacro[fromMacro.length - 1].d,
+      };
+      continue;
+    }
+
+    const byDate = new Map<string, number>();
+    for (const r of (oldRes.data ?? []) as Record<string, unknown>[]) {
+      const v = asNum(r[cmtCol]);
+      if (v != null) byDate.set(String(r.base_date), v);
+    }
+    // 신세대가 같은 날짜를 가지면 신세대 값으로 덮는다
+    for (const r of (newRes.data ?? []) as Record<string, unknown>[]) {
+      const v = asNum(r[cmtCol]);
+      if (v != null) byDate.set(String(r.report_date), v);
+    }
+    const sorted = [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    out[key] = {
+      values: sorted.map(([, v]) => v),
+      asOf: sorted.length ? sorted[sorted.length - 1][0] : null,
+    };
+  }
+
+  return out;
+}
+
 export async function getNews(baseDate: string): Promise<NewsRow[]> {
   const { data, error } = await supabase
     .from("news")

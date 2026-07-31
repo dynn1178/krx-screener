@@ -84,5 +84,6 @@ export const CATEGORY_ORDER = [
 export const SOURCE_LABEL: Record<string, string> = {
   FRED: "FRED",
   ECOS: "한국은행",
+  KRX: "한국거래소",
   DERIVED: "파생계산",
 };
