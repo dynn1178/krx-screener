@@ -6,18 +6,21 @@ on:
 
 concurrency:
   group: macro-collector
-  cancel-in-progress: false   # 진행 중인 실행은 유지, 새 실행은 대기열에서 취소
+  cancel-in-progress: false
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install fredapi requests supabase pandas
-      - run: python collect_macro.py
+
+      - run: pip install -r collector/requirements.txt
+
+      - run: python collector/collect_macro.py
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
