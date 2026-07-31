@@ -59,7 +59,14 @@ def collect_ecos():
         url = (f"https://ecos.bok.or.kr/api/StatisticSearch/{ECOS_KEY}/json/kr/1/10000/"
                f"{meta['stat']}/{meta['cycle']}/20150101/20261231/{meta['item']}")
         res = requests.get(url, timeout=10).json()
+
+        if "StatisticSearch" not in res:
+            print(f"[ECOS 오류] {sid} ({meta['stat']}/{meta['item']}): {res}")
+            continue
+
         data_rows = res.get("StatisticSearch", {}).get("row", [])
+        print(f"[ECOS 성공] {sid}: {len(data_rows)}건 수집")
+
         for r in data_rows:
             raw_date = r["TIME"]
             if len(raw_date) == 8:
