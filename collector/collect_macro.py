@@ -1,4 +1,6 @@
-import os, time
+# collector/collect_macro.py
+import os
+import time
 import pandas as pd
 import requests
 from fredapi import Fred
@@ -9,7 +11,39 @@ ECOS_KEY = os.environ["ECOS_API_KEY"]
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 fred = Fred(api_key=FRED_KEY)
 
-# --- FRED 수집 ---
+# ── 지표 정의 ──────────────────────────────────────────────
+
+FRED_SERIES = {
+    "DGS10": "미10년물", "DGS2": "미2년물", "DFF": "연방기금금리",
+    "T10Y2Y": "장단기금리차", "DEXKOUS": "원달러환율(FRED)", "DTWEXBGS": "달러인덱스",
+    "DCOILWTICO": "WTI유가", "VIXCLS": "VIX지수", "USSLIND": "미선행지수",
+    "UMCSENT": "미시간소비자심리", "CPIAUCSL": "미CPI", "UNRATE": "미실업률",
+}
+
+ECOS_SERIES = {
+    "RATE_BASE_M": {"stat": "722Y001", "item": "0101000", "cycle": "M"},
+    "FX_USD_D":    {"stat": "731Y006", "item": "0000013", "cycle": "D"},
+    "FX_CNY_D":    {"stat": "731Y006", "item": "0000010", "cycle": "D"},
+    "FX_JPY_D":    {"stat": "731Y006", "item": "0000006", "cycle": "D"},
+    "M2_TOTAL_M":  {"stat": "161Y005", "item": "BBHS00", "cycle": "M"},
+    "CLI_LEADING_M":          {"stat": "901Y067", "item": "I16A", "cycle": "M"},
+    "CLI_COINCIDENT_M":       {"stat": "901Y067", "item": "I16B", "cycle": "M"},
+    "CLI_LAGGING_M":          {"stat": "901Y067", "item": "I16C", "cycle": "M"},
+    "CLI_LEADING_CYCLE_M":    {"stat": "901Y067", "item": "I16E", "cycle": "M"},
+    "CLI_COINCIDENT_CYCLE_M": {"stat": "901Y067", "item": "I16D", "cycle": "M"},
+    "CPI_TOTAL_M": {"stat": "901Y009", "item": "0", "cycle": "M"},
+    "CCSI_M":        {"stat": "511Y002", "item": "FME",   "cycle": "M"},
+    "CCSI_TRAVEL_M": {"stat": "511Y002", "item": "FMCCD", "cycle": "M"},
+    "BSI_ACTUAL_M":   {"stat": "512Y013", "item": "99988", "cycle": "M"},
+    "BSI_FORECAST_M": {"stat": "512Y014", "item": "99988", "cycle": "M"},
+}
+
+DERIVED_SERIES = {
+    "M2_TOTAL_YOY_M": {"base": "M2_TOTAL_M", "method": "yoy_pct"},
+}
+
+# ── 수집 함수 ──────────────────────────────────────────────
+
 def collect_fred():
     rows = []
     for sid in FRED_SERIES:
@@ -19,7 +53,6 @@ def collect_fred():
                 rows.append({"series_id": sid, "date": date.strftime("%Y-%m-%d"), "value": float(value)})
     return rows
 
-# --- ECOS 수집 (원본 값 그대로, 변환 없음) ---
 def collect_ecos():
     rows = []
     for sid, meta in ECOS_SERIES.items():
@@ -29,9 +62,9 @@ def collect_ecos():
         data_rows = res.get("StatisticSearch", {}).get("row", [])
         for r in data_rows:
             raw_date = r["TIME"]
-            if len(raw_date) == 8:      # 일별: YYYYMMDD
+            if len(raw_date) == 8:
                 date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
-            elif len(raw_date) == 6:    # 월별: YYYYMM
+            elif len(raw_date) == 6:
                 date = f"{raw_date[:4]}-{raw_date[4:6]}-01"
             else:
                 continue
@@ -39,18 +72,15 @@ def collect_ecos():
         time.sleep(0.3)
     return rows
 
-# --- 파생 지표 계산 (M2 YoY 증가율) ---
 def compute_derived(all_rows):
     df = pd.DataFrame(all_rows)
     derived_rows = []
-
     for derived_id, meta in DERIVED_SERIES.items():
         base_df = df[df["series_id"] == meta["base"]].sort_values("date").copy()
         if base_df.empty:
             continue
         base_df["value"] = pd.to_numeric(base_df["value"])
-        base_df["yoy"] = base_df["value"].pct_change(periods=12) * 100  # 월별 기준 12개월 전 대비
-
+        base_df["yoy"] = base_df["value"].pct_change(periods=12) * 100
         for _, row in base_df.dropna(subset=["yoy"]).iterrows():
             derived_rows.append({
                 "series_id": derived_id,
