@@ -1,65 +1,123 @@
-import Screener from "@/components/Screener";
-import { supabase } from "@/lib/supabase";
-import type { Snapshot } from "@/lib/types";
+import DateSwitcher from "@/components/DateSwitcher";
+import MacroBoard from "@/components/MacroBoard";
+import MarketHeader from "@/components/MarketHeader";
+import MoversTable from "@/components/MoversTable";
+import { CommentarySections, SectorBars, BriefPanel } from "@/components/Commentary";
+import {
+  getReportDates,
+  resolveBaseDate,
+  getMacroBoard,
+  getCommentary,
+  getSectorPerf,
+  getFxRates,
+  getReportRows,
+  getDailyBrief,
+} from "@/lib/queries";
+import { dateKo } from "@/lib/format";
 
-// 수집이 하루 1회이므로 1시간 캐시
-export const revalidate = 3600;
+// 데이터는 하루 1회 갱신 → 30분 캐시
+export const revalidate = 1800;
 
-async function getSnapshot(): Promise<Snapshot[]> {
-  const rows: Snapshot[] = [];
-  const PAGE = 1000;
-
-  // Supabase는 1회 최대 1000행 → 페이지네이션
-  for (let from = 0; from < 5000; from += PAGE) {
-    const { data, error } = await supabase
-      .from("snapshot")
-      .select("*")
-      .order("market_cap", { ascending: false })
-      .range(from, from + PAGE - 1);
-
-    if (error) throw new Error(error.message);
-    if (!data?.length) break;
-
-    rows.push(...(data as Snapshot[]));
-    if (data.length < PAGE) break;
-  }
-  return rows;
+function Notice({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
+      <h2 className="text-base font-semibold text-amber-900">{title}</h2>
+      <div className="mt-2 text-sm leading-relaxed text-amber-800">{children}</div>
+    </div>
+  );
 }
 
-export default async function Page() {
-  let rows: Snapshot[] = [];
-  let error: string | null = null;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date: requested } = await searchParams;
 
+  let dates;
   try {
-    rows = await getSnapshot();
+    dates = await getReportDates();
   } catch (e) {
-    error = e instanceof Error ? e.message : String(e);
+    return (
+      <Notice title="Supabase 연결 실패">
+        {e instanceof Error ? e.message : String(e)}
+        <p className="mt-2">
+          Vercel 환경변수 <code>NEXT_PUBLIC_SUPABASE_URL</code> /{" "}
+          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> 를 확인하세요.
+        </p>
+      </Notice>
+    );
   }
 
-  if (error || !rows.length) {
+  if (!dates.length) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-        <h2 className="text-base font-semibold text-amber-900">
-          데이터가 없습니다
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-amber-800">
-          {error ?? "snapshot 테이블이 비어 있습니다."}
-        </p>
-        <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm text-amber-800">
-          <li>Supabase SQL Editor에서 <code>schema.sql</code> 실행</li>
-          <li>
-            GitHub → Actions → <strong>KRX 데이터 수집</strong> →{" "}
-            <strong>Run workflow</strong> → mode: <code>backfill</code>
-          </li>
-          <li>Vercel 환경변수(NEXT_PUBLIC_SUPABASE_URL / ANON_KEY) 확인</li>
-        </ol>
+      <Notice title="리포트 데이터가 없습니다">
+        daily_price · screening · market_daily_commentary 중 어느 테이블에도
+        데이터가 없습니다. 수집 파이프라인을 먼저 실행하세요.
+      </Notice>
+    );
+  }
+
+  const { baseDate, requestedMissing } = resolveBaseDate(dates, requested);
+
+  // STEP 0 — 지정한 날짜에 데이터가 없으면 임의로 옮기지 않고 그 사실만 알린다
+  if (requestedMissing || !baseDate) {
+    return (
+      <div className="space-y-4">
+        <DateSwitcher dates={dates} current={dates[0].base_date} />
+        <Notice title={`${requested} 데이터가 없습니다`}>
+          휴장일이거나 아직 수집되지 않은 날짜입니다. 임의로 다른 날짜로
+          이동하지 않습니다. 가장 최근 거래일은{" "}
+          <strong>{dates[0].base_date}</strong> 입니다.
+        </Notice>
       </div>
     );
   }
 
-  const sectors = Array.from(
-    new Set(rows.map((r) => r.sector).filter((s): s is string => !!s))
-  ).sort();
+  const [macro, commentary, sectors, fx, rows, brief] = await Promise.all([
+    getMacroBoard(baseDate),
+    getCommentary(baseDate),
+    getSectorPerf(baseDate),
+    getFxRates(baseDate),
+    getReportRows(baseDate),
+    getDailyBrief(baseDate),
+  ]);
 
-  return <Screener rows={rows} sectors={sectors} baseDate={rows[0].date} />;
+  const meta = dates.find((d) => d.base_date === baseDate);
+
+  return (
+    <div className="space-y-7">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-[19px] font-bold tracking-tight">
+          일별 시장 리포트
+        </h1>
+        <span className="rounded bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white tabular">
+          {dateKo(baseDate)}
+        </span>
+        <div className="ml-auto">
+          <DateSwitcher dates={dates} current={baseDate} />
+        </div>
+      </div>
+
+      {meta && !meta.has_commentary && !meta.has_summary && (
+        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          이 날짜는 시세 데이터만 적재되어 있고 서술형 시황·뉴스 분석은 아직
+          없습니다. 아래 스크리닝 표는 시세 기준으로 자동 산출한 결과입니다.
+        </p>
+      )}
+
+      <MacroBoard
+        cards={macro.cards}
+        updatedAt={macro.updatedAt}
+        dataDate={macro.dataDate}
+        baseDate={baseDate}
+      />
+
+      <BriefPanel brief={brief} />
+      <MarketHeader c={commentary} fx={fx} />
+      <CommentarySections c={commentary} />
+      <SectorBars rows={sectors} />
+      <MoversTable rows={rows} baseDate={baseDate} />
+    </div>
+  );
 }

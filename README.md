@@ -1,123 +1,114 @@
-# 📈 KRX 종목 스크리너
+# 📈 국내 증시 일별 분석
 
-회사 PC의 SSL 검사 문제를 우회하기 위해 **수집을 클라우드로 분리**한 구조입니다.
-회사에서는 브라우저로 접속만 하므로 Python도, KRX 접속도 필요 없습니다.
+수집은 클라우드(GitHub Actions), 저장은 Supabase, 열람은 Vercel에 올린 Next.js 앱.
+**웹은 한 번만 만들어 두고, 매일 갱신되는 건 Supabase 데이터뿐**입니다.
 
 ```
-GitHub Actions (평일 16:30 KST)
-  └─ collector/collect.py  ── pykrx로 전 종목 일괄 수집
-        │
-        ▼
-   Supabase (PostgreSQL)
-     · stocks             종목 마스터 (이름/업종/DART 고유번호)
-     · daily_price        일별 시세 (전 종목 × 일자)
-     · daily_fundamental  일별 PER/PBR/EPS/BPS/DIV
-     · snapshot           최신 스크리닝용 (앱이 읽는 테이블)
-        │
-        ▼
-   Next.js on Vercel
-     · /              스크리닝 (Supabase에서 읽어 브라우저에서 즉시 필터링)
-     · /stock/[코드]  주가·재무·밸류밴드·뉴스
-     · /api/dart      DART 재무제표 (서버사이드 호출)
-     · /api/news      네이버 뉴스 (서버사이드 호출)
-        │
-        ▼
-   집 · 회사 브라우저
+GitHub Actions                          Supabase (PostgreSQL)
+ ├─ collector/collect.py       ──▶  stocks · daily_price · daily_fundamental · snapshot
+ ├─ collector/collect_macro.py ──▶  macro_series · macro_daily
+ └─ 분석 파이프라인(MCP)        ──▶  screening · market_daily_commentary ·
+                                     sector_performance · fx_rates · daily_brief
+                                              │
+                                              ▼  뷰 4개로 통합
+                          daily_quote · daily_movers · surge_calendar · keyword_board
+                                              │
+                                              ▼
+                                    Next.js on Vercel
+                                     · /          일별 리포트 (매크로+시황+스크리닝)
+                                     · /keywords  키워드보드
+                                     · /calendar  급등 캘린더
+                                     · /screener  조건 스크리너
+                                     · /stock/[코드] 종목 상세
 ```
 
 ---
 
-## 셋업 순서 (약 40분)
+## 화면
+
+| 경로 | 내용 | 읽는 곳 |
+|---|---|---|
+| `/` | 매크로 28개 지표 보드 → 데일리 브리핑 → 시장 개요 → 서술형 시황 4섹션 → 업종 등락 → 종목 스크리닝 표 | `macro_*`, `market_*`, `sector_performance`, `fx_rates`, `daily_movers`, `screening`, `daily_brief` |
+| `/keywords` | 테마·이슈·산업 키워드를 거래일 교차 집계 | `keyword_board` 뷰 |
+| `/calendar` | 날짜별 급등/급락/변동/거래대금 종목 수를 달력으로 | `surge_calendar` 뷰 |
+| `/screener` | 슬라이더 조건 스크리닝 (기존 화면) | `snapshot` |
+
+`/?date=YYYY-MM-DD` 로 기준일자를 지정합니다. 지정한 날짜에 데이터가 없으면
+**임의로 다른 날짜로 옮기지 않고** 그 사실만 표시합니다.
+
+---
+
+## 데이터 구조에서 알아둘 것
+
+**`snapshot` 은 이력이 아닙니다.** PK가 `ticker` 단독이라 종목별 최신 1행만 남습니다.
+날짜별 시세 이력이 필요하면 `daily_price` 를 쓰세요. 급등 캘린더와 일자별
+등락률은 전부 `daily_price` 의 `lag()` 로 계산합니다.
+
+**시황 테이블이 두 개입니다.** 구세대 `market_summary`(headline·insights 포함)와
+신세대 `market_daily_commentary`(컬럼명이 다름). 웹앱은 신세대를 우선 조회하고
+없으면 구세대로 폴백합니다 — 어느 쪽을 읽었는지 화면에 표시됩니다.
+
+**스크리닝 카테고리 라벨도 두 벌입니다.** 뷰가 만드는 `6%이상변동` 과 구세대
+`screening` 의 `변동폭확대` 를 필터가 모두 인식합니다.
+
+**매크로는 forward-fill 되어 있습니다.** 휴일·미발표 구간이 직전값으로 채워져
+있으므로, 증감률은 단순히 하루/한 달 전 행과 비교하지 않고 **값이 실제로 바뀐
+직전 발표값**과 비교합니다.
+
+**거래대금·시가총액·순매수는 원 단위 정수**로 저장하고 표기만 축약합니다
+(셀에 마우스를 올리면 원 단위 전체값).
+
+---
+
+## 셋업
 
 ### 1. Supabase
 
-1. https://supabase.com → New project
-2. **SQL Editor** → `supabase/schema.sql` 전체 붙여넣기 → Run
-3. **Settings → API** 에서 3가지 값 복사
-   - `Project URL`
-   - `anon public` 키 → 웹앱 읽기용
-   - `service_role` 키 → 수집기 쓰기용 **(절대 브라우저/깃허브에 노출 금지)**
+1. SQL Editor에 `supabase/schema.sql` 전체 붙여넣고 Run
+2. Settings → API 에서 `Project URL`, `anon public`, `service_role` 복사
 
-### 2. GitHub
+> ⚠️ RLS를 켜기만 하고 SELECT 정책을 안 만들면 **에러 없이 0행**이 돌아옵니다.
+> `schema.sql` 마지막 블록이 모든 읽기 테이블에 공개 읽기 정책을 걸어줍니다.
 
-1. 이 폴더 전체를 **Private** 저장소로 push
-2. **Settings → Secrets and variables → Actions** 에 5개 등록
+### 2. GitHub Actions Secrets
 
-   | Secret | 값 |
-   |---|---|
-   | `SUPABASE_URL` | Project URL |
-   | `SUPABASE_SERVICE_KEY` | service_role 키 |
-   | `KRX_ID` | data.krx.co.kr 아이디 |
-   | `KRX_PW` | data.krx.co.kr 비밀번호 |
-   | `DART_API_KEY` | opendart.fss.or.kr 인증키 |
-
-3. **Actions → KRX 데이터 수집 → Run workflow**
-   - mode: **`backfill`**, days: `400` → 과거 1년치 채우기 (약 10~20분)
-   - 이후 평일 16:30에 `daily` 모드로 자동 실행
-
-> ⚠️ GitHub Actions 러너는 해외 IP입니다. KRX가 차단하면 로그에 SSL/403 에러가 뜹니다.
-> 그 경우 아래 **"수집이 막힐 때"** 를 참고하세요.
+| Secret | 값 |
+|---|---|
+| `SUPABASE_URL` | Project URL |
+| `SUPABASE_SERVICE_KEY` | service_role 키 (절대 브라우저·클라이언트 노출 금지) |
+| `KRX_ID` / `KRX_PW` | data.krx.co.kr 계정 |
+| `DART_API_KEY` | opendart.fss.or.kr 인증키 |
+| `FRED_API_KEY` | fred.stlouisfed.org 인증키 |
+| `ECOS_API_KEY` | ecos.bok.or.kr 인증키 |
 
 ### 3. Vercel
 
-1. https://vercel.com → New Project → 같은 저장소 선택
-2. **Root Directory** 를 **`web`** 으로 지정 ← 중요
-3. Environment Variables 5개 등록
+1. New Project → 이 저장소 선택
+2. **Root Directory 를 `web` 으로 지정** ← 중요
+3. Environment Variables
 
    | 변수 | 값 |
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon 키 |
-   | `DART_API_KEY` | DART 인증키 |
-   | `NAVER_CLIENT_ID` | 네이버 검색 API |
-   | `NAVER_CLIENT_SECRET` | 네이버 검색 API |
+   | `DART_API_KEY` | DART 인증키 (`/api/dart` 서버사이드 전용) |
+   | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 네이버 검색 API (`/api/news` 전용) |
 
-4. Deploy → `https://xxx.vercel.app`
+4. Deploy
 
----
-
-## API 키 발급 (모두 무료)
-
-| 키 | 발급처 |
-|---|---|
-| KRX 계정 | https://data.krx.co.kr → 회원가입 |
-| DART 인증키 | https://opendart.fss.or.kr → 인증키 신청 |
-| 네이버 검색 | https://developers.naver.com → 애플리케이션 등록 → **검색** 선택 |
+페이지는 `revalidate = 1800` (30분 ISR)이라 배포 후에도 Supabase 데이터가
+바뀌면 자동으로 반영됩니다. **웹 재배포는 필요 없습니다.**
 
 ---
 
-## 수집이 막힐 때 (해외 IP 차단 시)
-
-집 PC에서 하루 1회 돌리면 됩니다. 집은 SSL 검사가 없으니 잘 동작합니다.
+## 로컬 개발
 
 ```bash
-cd collector
-pip install -r requirements.txt
-
-set SUPABASE_URL=https://xxx.supabase.co
-set SUPABASE_SERVICE_KEY=eyJ...
-set KRX_ID=아이디
-set KRX_PW=비밀번호
-set DART_API_KEY=인증키
-
-python collect.py --mode backfill --days 400   # 최초 1회
-python collect.py --mode daily                 # 이후 매일
+cd web
+npm install
+cp .env.local.example .env.local   # NEXT_PUBLIC_ 두 개만 채우면 조회는 됩니다
+npm run dev
 ```
-
-**작업 스케줄러 등록** — `collect.bat` 만들어서 평일 16:40 실행 등록:
-
-```bat
-@echo off
-cd /d C:\krx\collector
-set SUPABASE_URL=...
-set SUPABASE_SERVICE_KEY=...
-set KRX_ID=...
-set KRX_PW=...
-set DART_API_KEY=...
-python collect.py --mode daily
-```
-
-집 PC가 꺼져 있어도 앱은 마지막 수집 데이터로 정상 동작합니다.
 
 ---
 
@@ -125,52 +116,28 @@ python collect.py --mode daily
 
 | 모드 | 하는 일 | 소요 |
 |---|---|---|
-| `master` | 종목명/업종/DART 고유번호만 갱신 | ~2분 |
-| `daily` | 오늘 시세·밸류 + 스냅샷 재생성 | ~1분 |
+| `master` | 종목명/업종/DART 고유번호 갱신 | ~2분 |
+| `daily` | 당일 시세·밸류 + 스냅샷 재생성 | ~1분 |
 | `backfill` | 과거 N일 시세·밸류 채우기 | 400일 ≈ 15분 |
 
-`backfill` 은 최초 1회만. 주가 차트와 밸류에이션 밴드에 필요합니다.
+`daily_price` 가 쌓일수록 급등 캘린더와 일자별 등락률이 촘촘해집니다.
+현재는 거래일이 얼마 없어 캘린더가 듬성듬성합니다.
 
----
-
-## 로컬 개발 (집에서)
+수집이 해외 IP로 막히면 집 PC에서:
 
 ```bash
-cd web
-npm install
-cp .env.local.example .env.local     # 값 채우기
-npm run dev                          # http://localhost:3000
+cd collector
+pip install -r requirements.txt
+python collect.py --mode daily
 ```
 
 ---
 
-## 설계 노트
+## 한계
 
-**왜 스냅샷 테이블을 따로 두는가**
-스크리닝은 최신 1일치만 필요합니다. 2,700행을 한 번에 받아 브라우저에서 필터링하면
-슬라이더를 움직일 때마다 서버 왕복 없이 즉시 반응합니다. 시계열(`daily_price`)은
-상세 화면에서만 해당 종목 것만 조회합니다.
-
-**왜 DART/뉴스를 API 라우트로 빼는가**
-키가 브라우저에 노출되지 않고, 회사 PC가 외부 API를 직접 호출하지 않으므로
-SSL 검사 문제가 발생하지 않습니다.
-
-**"전망"에 대해**
-애널리스트 컨센서스·목표주가는 무료 API가 사실상 없습니다(FnGuide 등 유료).
-대신 **실적 추세(DART) + 밸류에이션 밴드 내 현재 위치**로 대체 구성했습니다.
-
-**한계**
-- `daily_fundamental` 의 PER/PBR은 KRX 공시 반영 기준이라 시차가 있습니다
-  (12월 결산 → 3월 사업보고서 → KRX 5월경 반영). 정밀한 판단은 DART 재무 탭과 함께 보세요.
-- Supabase 무료 티어는 500MB. 일별 데이터 400일 × 2,700종목 ≈ 100MB 수준이라
-  2~3년치까지는 여유가 있습니다.
+- `stocks.sector` / `snapshot.sector` 가 비어 있습니다. 스펙상 최종 선정 종목에
+  대해서만 그때그때 채우는 항목이라, 채워지기 전까지 업종 컬럼은 비어 보입니다.
+- `daily_fundamental` 의 PER/PBR은 KRX 공시 반영 기준이라 시차가 있습니다.
+- 애널리스트 컨센서스·목표주가는 무료 API가 사실상 없어 `stock_fundamentals`
+  (MCP 수집분)에 있는 종목만 값이 있습니다.
 - 본 도구는 **후보군을 좁히는 탐색용**이며 투자 판단 근거가 아닙니다.
-
----
-
-## 다음에 붙일 만한 것
-
-- **관심종목** — Supabase 테이블 + Supabase Auth → 집/회사 동기화
-- **수급** — 외국인·기관 순매수 (종목별 호출이라 관심종목만 수집하는 게 현실적)
-- **알림** — 조건 충족 종목 발생 시 Slack/카카오
-- **백테스트** — `daily_price` 가 쌓이면 "이 조건으로 6개월 전 샀다면?" 검증 가능
