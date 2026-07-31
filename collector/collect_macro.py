@@ -53,12 +53,33 @@ def collect_fred():
                 rows.append({"series_id": sid, "date": date.strftime("%Y-%m-%d"), "value": float(value)})
     return rows
 
+def format_ecos_date(cycle: str, is_start: bool) -> str:
+    """ECOS 주기별 날짜 형식 변환"""
+    if cycle == "D":
+        return "20150101" if is_start else "20261231"
+    elif cycle == "M":
+        return "201501" if is_start else "202612"
+    elif cycle == "Q":
+        return "2015Q1" if is_start else "2026Q4"
+    elif cycle == "A":
+        return "2015" if is_start else "2026"
+    else:
+        raise ValueError(f"지원하지 않는 cycle: {cycle}")
+
 def collect_ecos():
     rows = []
     for sid, meta in ECOS_SERIES.items():
+        start_date = format_ecos_date(meta["cycle"], is_start=True)
+        end_date = format_ecos_date(meta["cycle"], is_start=False)
+
         url = (f"https://ecos.bok.or.kr/api/StatisticSearch/{ECOS_KEY}/json/kr/1/10000/"
-               f"{meta['stat']}/{meta['cycle']}/20150101/20261231/{meta['item']}")
-        res = requests.get(url, timeout=10).json()
+               f"{meta['stat']}/{meta['cycle']}/{start_date}/{end_date}/{meta['item']}")
+
+        try:
+            res = requests.get(url, timeout=30).json()
+        except requests.exceptions.RequestException as e:
+            print(f"[ECOS 연결 실패] {sid}: {e}")
+            continue
 
         if "StatisticSearch" not in res:
             print(f"[ECOS 오류] {sid} ({meta['stat']}/{meta['item']}): {res}")
@@ -66,7 +87,6 @@ def collect_ecos():
 
         data_rows = res.get("StatisticSearch", {}).get("row", [])
         print(f"[ECOS 성공] {sid}: {len(data_rows)}건 수집")
-
         for r in data_rows:
             raw_date = r["TIME"]
             if len(raw_date) == 8:
