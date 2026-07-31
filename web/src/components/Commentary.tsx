@@ -32,8 +32,8 @@ function Section({
 
 export function CommentarySections({ c }: { c: C | null }) {
   if (!c) return null;
-  // 테마·섹터 분석은 SectorPanel 에서 업종 등락과 함께 보여주므로 여기선 뺀다
-  const any = c.overview || c.investorFlow || c.additionalInsight;
+  const any =
+    c.overview || c.investorFlow || c.additionalInsight || c.themeAnalysis;
   if (!any && !c.insights.length) return null;
 
   return (
@@ -43,6 +43,7 @@ export function CommentarySections({ c }: { c: C | null }) {
         <Section title="시장 개요" body={c.overview} />
         <Section title="투자주체 동향" body={c.investorFlow} />
         <Section title="추가 인사이트" body={c.additionalInsight} />
+        <Section title="테마 · 섹터 분석" body={c.themeAnalysis} />
       </div>
 
       {c.insights.length > 0 && (
@@ -78,21 +79,35 @@ export function CommentarySections({ c }: { c: C | null }) {
 }
 
 /**
- * 7번 — 섹터별 등락을 막대그래프로.
+ * 섹터별 등락을 가로 막대그래프로만 보여준다.
  * 0을 중앙에 둔 양방향 막대라 상승/하락 폭을 한눈에 비교할 수 있다.
+ * 서술 텍스트는 CommentarySections 의 "테마 · 섹터 분석" 칸으로 옮겼다.
  */
-export function SectorPanel({
-  rows,
-  analysis,
-}: {
-  rows: SectorPerf[];
-  analysis?: string | null;
-}) {
-  if (!rows.length && !analysis) return null;
+export function SectorPanel({ rows }: { rows: SectorPerf[] }) {
+  if (!rows.length) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-[17px] font-bold tracking-tight">테마 · 섹터 분석</h2>
+        <p
+          className="rounded-xl border px-4 py-3 text-[13px]"
+          style={{
+            borderColor: "var(--line)",
+            background: "var(--card-2)",
+            color: "var(--fg-subtle)",
+          }}
+        >
+          업종별 등락 데이터가 없습니다. 일별 분석에서{" "}
+          <code>get_sector_performance</code> 결과를{" "}
+          <code>sector_performance</code> 테이블에 적재하면 막대그래프가
+          표시됩니다.
+        </p>
+      </section>
+    );
+  }
 
   const max = Math.max(...rows.map((r) => Math.abs(r.avg_change_pct)), 1);
-  const best = rows.length ? rows[0] : null;
-  const worst = rows.length ? rows[rows.length - 1] : null;
+  const best = rows[0];
+  const worst = rows[rows.length - 1];
 
   return (
     <section className="space-y-3">
@@ -116,68 +131,54 @@ export function SectorPanel({
         className="overflow-hidden rounded-xl border"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
-        {rows.length > 0 && (
-          <div className="p-4">
-            <div className="space-y-2.5">
-              {rows.map((r) => {
-                const w = (Math.abs(r.avg_change_pct) / max) * 50;
-                const up = r.avg_change_pct >= 0;
-                return (
-                  <div key={r.sector} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 truncate text-right text-[14px] font-semibold">
-                      {r.sector}
-                    </span>
+        <div className="p-4">
+          <div className="space-y-2.5">
+            {rows.map((r) => {
+              const w = (Math.abs(r.avg_change_pct) / max) * 50;
+              const up = r.avg_change_pct >= 0;
+              return (
+                <div key={r.sector} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 truncate text-right text-[14px] font-semibold">
+                    {r.sector}
+                  </span>
 
-                    {/* 0 기준 양방향 막대 */}
-                    <div className="relative h-6 flex-1">
-                      <div
-                        className="absolute inset-y-0 left-1/2 w-px"
-                        style={{ background: "var(--line-strong)" }}
-                      />
-                      <div
-                        className="absolute inset-y-1 rounded"
-                        style={{
-                          background: trendVar(r.avg_change_pct),
-                          ...(up
-                            ? { left: "50%", width: `${w}%` }
-                            : { right: "50%", width: `${w}%` }),
-                        }}
-                      />
-                    </div>
-
-                    <span
-                      className={`w-20 shrink-0 text-right text-[14px] font-bold tabular ${trend(r.avg_change_pct)}`}
-                    >
-                      {pct2(r.avg_change_pct)}
-                    </span>
+                  {/* 0 기준 양방향 막대 */}
+                  <div className="relative h-7 flex-1">
+                    <div
+                      className="absolute inset-y-0 left-1/2 w-px"
+                      style={{ background: "var(--line-strong)" }}
+                    />
+                    <div
+                      className="absolute inset-y-1 rounded"
+                      style={{
+                        background: trendVar(r.avg_change_pct),
+                        ...(up
+                          ? { left: "50%", width: `${w}%` }
+                          : { right: "50%", width: `${w}%` }),
+                      }}
+                    />
                   </div>
-                );
-              })}
-            </div>
 
-            <div
-              className="mt-3 flex justify-between border-t pt-2 text-[11px]"
-              style={{ borderColor: "var(--line)", color: "var(--fg-subtle)" }}
-            >
-              <span>← 하락</span>
-              <span>0%</span>
-              <span>상승 →</span>
-            </div>
+                  <span
+                    className={`w-20 shrink-0 text-right text-[15px] font-bold tabular ${trend(r.avg_change_pct)}`}
+                  >
+                    {pct2(r.avg_change_pct)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        )}
 
-        {analysis && (
           <div
-            className="px-4 py-3 text-[14px] leading-[1.8]"
-            style={{
-              background: "var(--card-2)",
-              color: "var(--fg-muted)",
-              borderTop: rows.length ? "1px solid var(--line)" : undefined,
-            }}
+            className="mt-3 flex justify-between border-t pt-2 text-[12px]"
+            style={{ borderColor: "var(--line)", color: "var(--fg-subtle)" }}
           >
-            {analysis}
+            <span>← 하락</span>
+            <span>0%</span>
+            <span>상승 →</span>
           </div>
-        )}
+        </div>
+
       </div>
     </section>
   );

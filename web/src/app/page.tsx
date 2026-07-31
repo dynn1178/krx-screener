@@ -129,7 +129,7 @@ export default async function Page({
       />
 
       <BriefPanel brief={brief} />
-      <SectorPanel rows={sectors} analysis={commentary?.themeAnalysis} />
+      <SectorPanel rows={sectors} />
       <CommentarySections c={commentary} />
       <MoversTable rows={rows} baseDate={baseDate} />
       <FlowSignals rows={flows} baseDate={baseDate} />
