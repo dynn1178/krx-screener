@@ -83,16 +83,16 @@ export default function SurgeCalendar({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-[var(--line)] bg-white p-0.5">
+        <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--card)] p-0.5">
           {KINDS.map((k) => (
             <button
               key={k.key}
               type="button"
               onClick={() => setKind(k.key)}
-              className={`rounded-md px-3 py-1.5 text-[12px] font-semibold transition ${
+              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold transition ${
                 kind === k.key
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-500 hover:text-neutral-900"
+                  ? "bg-[var(--fg)] text-white"
+                  : "text-[var(--fg-subtle)] hover:text-[var(--fg)]"
               }`}
             >
               {k.label}
@@ -101,13 +101,13 @@ export default function SurgeCalendar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-[var(--line)] bg-neutral-50/60 px-3 py-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-[var(--line)] bg-[var(--card-2)] px-3 py-2">
+        <label className="flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)]">
           키워드 정렬
           <select
             value={kwSort}
             onChange={(e) => setKwSort(e.target.value as KeywordSort)}
-            className="h-7 rounded border border-[var(--line)] bg-white px-1.5 text-[12px]"
+            className="h-7 rounded border border-[var(--line)] bg-[var(--card)] px-1.5 text-[13px]"
           >
             {KEYWORD_SORTS.map((s) => (
               <option key={s.key} value={s.key}>
@@ -117,12 +117,12 @@ export default function SurgeCalendar({
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-[11px] text-neutral-600">
+        <label className="flex items-center gap-1.5 text-[12px] text-[var(--fg-muted)]">
           <input
             type="checkbox"
             checked={upOnly}
             onChange={(e) => setUpOnly(e.target.checked)}
-            className="accent-teal-700"
+            className=""
           />
           급등 키워드만 (평균 상승률 &gt; 0)
         </label>
@@ -130,7 +130,7 @@ export default function SurgeCalendar({
         <select
           value={topN}
           onChange={(e) => setTopN(Number(e.target.value) as TopN)}
-          className="h-7 rounded border border-[var(--line)] bg-white px-1.5 text-[12px]"
+          className="h-7 rounded border border-[var(--line)] bg-[var(--card)] px-1.5 text-[13px]"
           aria-label="키워드 표기 개수"
         >
           {TOP_N_OPTIONS.map((o) => (
@@ -150,17 +150,17 @@ export default function SurgeCalendar({
               <h2 className="text-[14px] font-bold tracking-tight">
                 {y}년 {m}월
               </h2>
-              <span className="text-[11px] text-neutral-500 tabular">
+              <span className="text-[12px] text-[var(--fg-subtle)] tabular">
                 이 달 키워드 {st.total}건 · 상승 {st.up}건
               </span>
             </div>
 
             <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)]">
-              <div className="grid grid-cols-5 border-b border-[var(--line)] bg-neutral-50">
+              <div className="grid grid-cols-5 border-b border-[var(--line)] bg-[var(--card-2)]">
                 {WEEK.map((w) => (
                   <div
                     key={w}
-                    className="py-1.5 text-center text-[11px] font-medium text-neutral-500"
+                    className="py-1.5 text-center text-[12px] font-medium text-[var(--fg-subtle)]"
                   >
                     {w}
                   </div>
@@ -173,7 +173,7 @@ export default function SurgeCalendar({
                     return (
                       <div
                         key={i}
-                        className="min-h-[128px] border-b border-r border-[var(--line)] bg-neutral-50/40"
+                        className="min-h-[128px] border-b border-r border-[var(--line)] bg-[var(--card-2)]"
                       />
                     );
 
@@ -187,8 +187,8 @@ export default function SurgeCalendar({
                     >
                       <div className="flex items-baseline justify-between">
                         <span
-                          className={`text-[12px] font-semibold tabular ${
-                            list.length ? "text-neutral-800" : "text-neutral-300"
+                          className={`text-[13px] font-semibold tabular ${
+                            list.length ? "text-[var(--fg)]" : "text-[var(--fg-subtle)]"
                           }`}
                         >
                           {day}
@@ -196,7 +196,7 @@ export default function SurgeCalendar({
                         {list.length > 0 && (
                           <Link
                             href={`/?date=${iso}`}
-                            className="text-[10px] text-teal-700 hover:underline"
+                            className="text-[12px] text-[var(--accent-fg)] hover:underline"
                           >
                             상세
                           </Link>
@@ -204,7 +204,7 @@ export default function SurgeCalendar({
                       </div>
 
                       {list.length === 0 ? (
-                        <div className="mt-6 text-center text-[11px] text-neutral-300">
+                        <div className="mt-6 text-center text-[12px] text-[var(--fg-subtle)]">
                           –
                         </div>
                       ) : (
@@ -212,10 +212,10 @@ export default function SurgeCalendar({
                           {list.map((k) => (
                             <div
                               key={k.keyword}
-                              className="flex items-baseline justify-between gap-1 text-[10px] tabular"
+                              className="flex items-baseline justify-between gap-1 text-[12px] tabular"
                             >
                               <span
-                                className="truncate text-neutral-700"
+                                className="truncate text-[var(--fg-muted)]"
                                 title={k.keyword}
                               >
                                 {k.keyword}
@@ -226,7 +226,7 @@ export default function SurgeCalendar({
                                 >
                                   {pct2(k.avg_change_pct)}
                                 </span>
-                                <span className="text-neutral-400">
+                                <span className="text-[var(--fg-subtle)]">
                                   {wonShort(k.total_trade_value)}
                                 </span>
                               </span>
@@ -243,7 +243,7 @@ export default function SurgeCalendar({
         );
       })}
 
-      <p className="text-[11px] leading-relaxed text-neutral-400">
+      <p className="text-[12px] leading-relaxed text-[var(--fg-subtle)]">
         각 날짜에는 그날 스크리닝된 종목들의 키워드를 평균 상승률·누적 거래대금과
         함께 표시합니다. 주말·휴장일은 제외했고, 뉴스 분석이 없는 날은 비어
         있습니다. 날짜의 &quot;상세&quot;를 누르면 해당일 리포트로 이동합니다.

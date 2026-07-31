@@ -24,11 +24,12 @@ export default function NavLinks() {
           <Link
             key={l.href}
             href={l.href}
-            className={`rounded px-2.5 py-1 text-[13px] font-medium transition ${
+            className="rounded px-2.5 py-1.5 text-[14px] font-semibold transition"
+            style={
               active
-                ? "bg-teal-50 text-teal-800"
-                : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
-            }`}
+                ? { background: "var(--accent-bg)", color: "var(--accent-fg)" }
+                : { color: "var(--fg-subtle)" }
+            }
           >
             {l.label}
           </Link>

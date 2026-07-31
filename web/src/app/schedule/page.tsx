@@ -7,10 +7,10 @@ const KIND_META: Record<string, { label: string; cls: string }> = {
   macro: { label: "경제지표", cls: "bg-sky-50 text-sky-700 border-sky-200" },
   earnings: { label: "실적", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   policy: { label: "통화정책", cls: "bg-violet-50 text-violet-700 border-violet-200" },
-  dividend: { label: "배당", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  dividend: { label: "배당", cls: "bg-[var(--warn-bg)] text-amber-700 border-[var(--warn-line)]" },
   ipo: { label: "공모주", cls: "bg-rose-50 text-rose-700 border-rose-200" },
   expiry: { label: "만기", cls: "bg-orange-50 text-orange-700 border-orange-200" },
-  holiday: { label: "휴장", cls: "bg-neutral-100 text-neutral-600 border-neutral-200" },
+  holiday: { label: "휴장", cls: "bg-[var(--card-2)] text-[var(--fg-muted)] border-[var(--line)]" },
 };
 
 const REGION: Record<string, string> = { KR: "국내", US: "미국", GLOBAL: "글로벌" };
@@ -39,14 +39,14 @@ export default async function Page() {
     <div className="space-y-5">
       <div>
         <h1 className="text-[19px] font-bold tracking-tight">증시 캘린더</h1>
-        <p className="mt-0.5 text-xs text-neutral-500">
+        <p className="mt-0.5 text-xs text-[var(--fg-subtle)]">
           경제지표 발표 · 실적발표 · 통화정책 · 만기일 일정
         </p>
       </div>
 
       {days.length === 0 ? (
         <div className="space-y-4">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm leading-relaxed text-amber-900">
+          <div className="rounded-lg border border-[var(--warn-line)] bg-[var(--warn-bg)] p-5 text-sm leading-relaxed text-[var(--warn-fg)]">
             <p className="font-semibold">
               아직 일정 데이터가 없습니다 (market_calendar 테이블이 비어 있음).
             </p>
@@ -85,17 +85,17 @@ export default async function Page() {
             href="https://www.tossinvest.com/calendar"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--card)] px-4 py-3 hover:bg-neutral-50"
+            className="flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--card)] px-4 py-3 hover:bg-[var(--card-2)]"
           >
             <div>
-              <div className="text-[13px] font-bold">
+              <div className="text-[14px] font-bold">
                 토스증권 증시 캘린더에서 보기 ↗
               </div>
-              <div className="mt-0.5 text-[11px] text-neutral-500">
+              <div className="mt-0.5 text-[12px] text-[var(--fg-subtle)]">
                 컨센서스·예측치까지 포함된 전체 일정은 토스증권에서 확인하세요.
               </div>
             </div>
-            <span className="text-neutral-300">→</span>
+            <span className="text-[var(--fg-subtle)]">→</span>
           </a>
         </div>
       ) : (
@@ -108,23 +108,23 @@ export default async function Page() {
               <div
                 key={date}
                 className={`overflow-hidden rounded-lg border bg-[var(--card)] ${
-                  isToday ? "border-teal-600" : "border-[var(--line)]"
+                  isToday ? "border-[var(--accent)]" : "border-[var(--line)]"
                 } ${isPast ? "opacity-60" : ""}`}
               >
                 <div
                   className={`flex items-center gap-2 px-4 py-2 ${
-                    isToday ? "bg-teal-50" : "bg-neutral-50"
+                    isToday ? "bg-[var(--accent-bg)]" : "bg-[var(--card-2)]"
                   }`}
                 >
-                  <span className="text-[13px] font-bold tabular">
+                  <span className="text-[14px] font-bold tabular">
                     {date} ({WEEK[d.getUTCDay()]})
                   </span>
                   {isToday && (
-                    <span className="rounded bg-teal-700 px-1.5 py-px text-[10px] font-bold text-white">
+                    <span className="rounded bg-[var(--accent)] px-1.5 py-px text-[12px] font-bold text-white">
                       오늘
                     </span>
                   )}
-                  <span className="ml-auto text-[11px] text-neutral-400">
+                  <span className="ml-auto text-[12px] text-[var(--fg-subtle)]">
                     {list.length}건
                   </span>
                 </div>
@@ -133,7 +133,7 @@ export default async function Page() {
                   {list.map((e) => {
                     const meta = KIND_META[e.kind] ?? {
                       label: e.kind,
-                      cls: "bg-neutral-100 text-neutral-600 border-neutral-200",
+                      cls: "bg-[var(--card-2)] text-[var(--fg-muted)] border-[var(--line)]",
                     };
                     return (
                       <li
@@ -141,20 +141,20 @@ export default async function Page() {
                         className="flex flex-wrap items-baseline gap-2 px-4 py-2"
                       >
                         <span
-                          className={`rounded border px-1.5 py-px text-[10px] font-medium ${meta.cls}`}
+                          className={`rounded border px-1.5 py-px text-[12px] font-medium ${meta.cls}`}
                         >
                           {meta.label}
                         </span>
-                        <span className="text-[10px] text-neutral-400">
+                        <span className="text-[12px] text-[var(--fg-subtle)]">
                           {REGION[e.region] ?? e.region}
                         </span>
-                        <span className="text-[13px] font-medium text-neutral-800">
+                        <span className="text-[14px] font-medium text-[var(--fg)]">
                           {e.source_url ? (
                             <a
                               href={e.source_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="hover:text-teal-700 hover:underline"
+                              className="hover:text-[var(--accent-fg)] hover:underline"
                             >
                               {e.title}
                             </a>
@@ -163,17 +163,17 @@ export default async function Page() {
                           )}
                         </span>
                         {e.detail && (
-                          <span className="text-[11px] text-neutral-500">
+                          <span className="text-[12px] text-[var(--fg-subtle)]">
                             {e.detail}
                           </span>
                         )}
                         {e.importance >= 3 && (
-                          <span className="rounded bg-rose-600 px-1 py-px text-[9px] font-bold text-white">
+                          <span className="rounded bg-[var(--up)] px-1 py-px text-[11px] font-bold text-white">
                             중요
                           </span>
                         )}
                         {e.source && (
-                          <span className="ml-auto text-[10px] text-neutral-300">
+                          <span className="ml-auto text-[12px] text-[var(--fg-subtle)]">
                             {e.source}
                           </span>
                         )}

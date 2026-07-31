@@ -1,14 +1,74 @@
 @import "tailwindcss";
 
+/* data-theme="dark" 아래에서 dark: 유틸리티가 동작하도록 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
+  /* 표면 */
   --bg: #fafaf9;
   --card: #ffffff;
+  --card-2: #f5f5f4;   /* 테이블 헤더 · 보조 패널 */
   --line: #e7e5e4;
+  --line-strong: #d6d3d1;
+
+  /* 글자 */
+  --fg: #1c1917;
+  --fg-muted: #57534e;
+  --fg-subtle: #a8a29e;
+
+  /* 강조 */
+  --accent: #0f766e;
+  --accent-bg: #f0fdfa;
+  --accent-fg: #115e59;
+
+  /* 등락 — 한국 관례: 상승 빨강 / 하락 파랑 */
+  --up: #e11d48;
+  --down: #2563eb;
+  --flat: #a8a29e;
+  --up-bg: #fff1f2;
+  --down-bg: #eff6ff;
+
+  /* 경고 */
+  --warn-bg: #fffbeb;
+  --warn-line: #fde68a;
+  --warn-fg: #92400e;
+
+  color-scheme: light;
 }
 
-html, body {
+[data-theme="dark"] {
+  --bg: #0c0a09;
+  --card: #1c1917;
+  --card-2: #262322;
+  --line: #322e2b;
+  --line-strong: #44403c;
+
+  --fg: #f5f5f4;
+  --fg-muted: #a8a29e;
+  --fg-subtle: #78716c;
+
+  --accent: #2dd4bf;
+  --accent-bg: #042f2e;
+  --accent-fg: #5eead4;
+
+  /* 어두운 배경에서 대비를 위해 톤을 올린다 */
+  --up: #fb7185;
+  --down: #60a5fa;
+  --flat: #78716c;
+  --up-bg: #3f1d24;
+  --down-bg: #17274a;
+
+  --warn-bg: #2a2110;
+  --warn-line: #57430f;
+  --warn-fg: #fcd34d;
+
+  color-scheme: dark;
+}
+
+html,
+body {
   background: var(--bg);
-  color: #1c1917;
+  color: var(--fg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -16,13 +76,55 @@ body {
   font-family: var(--font-nanum-gothic), "Nanum Gothic", "Malgun Gothic",
     "맑은 고딕", system-ui, sans-serif;
   font-feature-settings: "tnum";
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* 숫자는 등폭으로 — 표 정렬용 */
-.tabular { font-variant-numeric: tabular-nums; }
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
 
-input[type="range"] { accent-color: #0f766e; }
+/* 등락 색상 유틸 — 컴포넌트에서 이 클래스만 쓴다 */
+.t-up { color: var(--up); }
+.t-down { color: var(--down); }
+.t-flat { color: var(--flat); }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 6px; }
+/* 폼 요소 */
+input[type="range"] { accent-color: var(--accent); }
+input[type="checkbox"] { accent-color: var(--accent); }
+
+input[type="text"],
+input[type="search"],
+input:not([type]),
+select {
+  background: var(--card);
+  color: var(--fg);
+  border-color: var(--line);
+}
+
+select option {
+  background: var(--card);
+  color: var(--fg);
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 6px;
+}
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* 테마 전환 시 색만 부드럽게.
+   모든 자손에 transition 을 걸면 리페인트 비용이 커서 표면 요소로만 제한한다. */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-ready body,
+  html.theme-ready header,
+  html.theme-ready section,
+  html.theme-ready table,
+  html.theme-ready td,
+  html.theme-ready th {
+    transition: background-color 0.15s ease, border-color 0.15s ease,
+      color 0.15s ease;
+  }
+}

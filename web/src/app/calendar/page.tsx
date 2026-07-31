@@ -11,7 +11,7 @@ export default async function Page() {
     return (
       <div className="space-y-4">
         <h1 className="text-[19px] font-bold tracking-tight">급등 캘린더</h1>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        <div className="rounded-lg border border-[var(--warn-line)] bg-[var(--warn-bg)] p-6 text-sm text-[var(--warn-fg)]">
           시세 이력(<code>daily_price</code>)과 키워드 분석(
           <code>screening</code>) 둘 다 비어 있어 캘린더를 만들 수 없습니다.
         </div>
@@ -45,7 +45,7 @@ export default async function Page() {
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-[19px] font-bold tracking-tight">급등 캘린더</h1>
         {agg.length > 0 && (
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-[var(--fg-subtle)]">
             {agg.length}개 거래일 · {agg[agg.length - 1].base_date} ~{" "}
             {agg[0].base_date}
           </span>
@@ -55,28 +55,28 @@ export default async function Page() {
       {agg.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {[
-            { label: "급등주 (+15% 이상)", v: totals.surge, cls: "text-rose-600" },
-            { label: "급락주 (-10% 이하)", v: totals.plunge, cls: "text-blue-600" },
-            { label: "장중 6% 이상 변동", v: totals.swing, cls: "text-amber-600" },
-            { label: "거래대금 500억 이상", v: totals.big, cls: "text-teal-700" },
+            { label: "급등주 (+15% 이상)", v: totals.surge, cls: "t-up" },
+            { label: "급락주 (-10% 이하)", v: totals.plunge, cls: "t-down" },
+            { label: "장중 6% 이상 변동", v: totals.swing, cls: "text-[var(--warn-fg)]" },
+            { label: "거래대금 500억 이상", v: totals.big, cls: "text-[var(--accent-fg)]" },
           ].map((s) => (
             <div
               key={s.label}
               className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-2"
             >
-              <div className="text-[11px] text-neutral-500">{s.label}</div>
+              <div className="text-[12px] text-[var(--fg-subtle)]">{s.label}</div>
               <div className={`mt-0.5 text-[19px] font-bold tabular ${s.cls}`}>
                 {s.v.toLocaleString("ko-KR")}
               </div>
-              <div className="text-[10px] text-neutral-400">누적 종목수</div>
+              <div className="text-[12px] text-[var(--fg-subtle)]">누적 종목수</div>
             </div>
           ))}
           <div className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-2">
-            <div className="text-[11px] text-neutral-500">누적 거래대금</div>
-            <div className="mt-0.5 text-[19px] font-bold tabular text-neutral-800">
+            <div className="text-[12px] text-[var(--fg-subtle)]">누적 거래대금</div>
+            <div className="mt-0.5 text-[19px] font-bold tabular text-[var(--fg)]">
               {wonShort(totals.value)}
             </div>
-            <div className="text-[10px] text-neutral-400">기간 합계</div>
+            <div className="text-[12px] text-[var(--fg-subtle)]">기간 합계</div>
           </div>
         </div>
       )}

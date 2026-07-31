@@ -94,7 +94,7 @@ export default function DatePicker({
         type="button"
         disabled={idx <= 0 || pending}
         onClick={() => go(sorted[idx - 1])}
-        className="grid h-8 w-7 place-items-center rounded border border-[var(--line)] bg-white text-neutral-600 disabled:opacity-30"
+        className="grid h-8 w-7 place-items-center rounded border border-[var(--line)] bg-[var(--card)] text-[var(--fg-muted)] disabled:opacity-30"
         aria-label="이전 거래일"
       >
         ‹
@@ -105,41 +105,41 @@ export default function DatePicker({
         onClick={() => setOpen((v) => !v)}
         disabled={pending}
         aria-expanded={open}
-        className="flex h-8 items-center gap-2 rounded border border-[var(--line)] bg-white px-3 text-[13px] font-semibold tabular hover:bg-neutral-50"
+        className="flex h-8 items-center gap-2 rounded border border-[var(--line)] bg-[var(--card)] px-3 text-[14px] font-semibold tabular hover:bg-[var(--card-2)]"
       >
         <span aria-hidden="true">🗓</span>
         {label}
-        <span className="text-[10px] text-neutral-400">▾</span>
+        <span className="text-[12px] text-[var(--fg-subtle)]">▾</span>
       </button>
 
       <button
         type="button"
         disabled={idx < 0 || idx >= sorted.length - 1 || pending}
         onClick={() => go(sorted[idx + 1])}
-        className="grid h-8 w-7 place-items-center rounded border border-[var(--line)] bg-white text-neutral-600 disabled:opacity-30"
+        className="grid h-8 w-7 place-items-center rounded border border-[var(--line)] bg-[var(--card)] text-[var(--fg-muted)] disabled:opacity-30"
         aria-label="다음 거래일"
       >
         ›
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-50 w-[268px] rounded-lg border border-[var(--line)] bg-white p-3 shadow-lg">
+        <div className="absolute right-0 top-9 z-50 w-[268px] rounded-lg border border-[var(--line)] bg-[var(--card)] p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="grid h-6 w-6 place-items-center rounded text-neutral-500 hover:bg-neutral-100"
+              className="grid h-6 w-6 place-items-center rounded text-[var(--fg-subtle)] hover:bg-[var(--card-2)]"
               aria-label="이전 달"
             >
               ‹
             </button>
-            <span className="text-[13px] font-bold tabular">
+            <span className="text-[14px] font-bold tabular">
               {view.y}년 {view.m}월
             </span>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="grid h-6 w-6 place-items-center rounded text-neutral-500 hover:bg-neutral-100"
+              className="grid h-6 w-6 place-items-center rounded text-[var(--fg-subtle)] hover:bg-[var(--card-2)]"
               aria-label="다음 달"
             >
               ›
@@ -150,12 +150,12 @@ export default function DatePicker({
             {WEEK.map((w, i) => (
               <div
                 key={w}
-                className={`py-1 text-center text-[11px] font-medium ${
+                className={`py-1 text-center text-[12px] font-medium ${
                   i === 0
-                    ? "text-rose-500"
+                    ? "t-up"
                     : i === 6
-                      ? "text-blue-500"
-                      : "text-neutral-400"
+                      ? "t-down"
+                      : "text-[var(--fg-subtle)]"
                 }`}
               >
                 {w}
@@ -173,12 +173,12 @@ export default function DatePicker({
                   type="button"
                   disabled={!has}
                   onClick={() => go(iso)}
-                  className={`mx-auto grid h-7 w-7 place-items-center rounded text-[12px] tabular transition ${
+                  className={`mx-auto grid h-7 w-7 place-items-center rounded text-[13px] tabular transition ${
                     isCur
-                      ? "bg-teal-700 font-bold text-white"
+                      ? "bg-[var(--accent)] font-bold text-white"
                       : has
-                        ? "font-semibold text-neutral-800 hover:bg-teal-50"
-                        : "text-neutral-300"
+                        ? "font-semibold text-[var(--fg)] hover:bg-[var(--accent-bg)]"
+                        : "text-[var(--fg-subtle)]"
                   }`}
                 >
                   {d}
@@ -187,13 +187,13 @@ export default function DatePicker({
             })}
           </div>
 
-          <div className="mt-2 flex items-center gap-3 border-t border-[var(--line)] pt-2 text-[10px] text-neutral-400">
+          <div className="mt-2 flex items-center gap-3 border-t border-[var(--line)] pt-2 text-[12px] text-[var(--fg-subtle)]">
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-teal-700" />
+              <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
               데이터 있음
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-neutral-200" />
+              <span className="h-2 w-2 rounded-full bg-[var(--line-strong)]" />
               없음
             </span>
           </div>

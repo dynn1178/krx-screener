@@ -1,17 +1,15 @@
 /**
  * 서버에서 렌더되는 인라인 SVG 스파크라인.
  * 카드 배경에 깔리므로 축·눈금 없이 추세선만 그린다.
+ * 색은 CSS 변수를 쓰므로 다크모드에서 자동으로 바뀐다.
  */
 export default function Sparkline({
   values,
   rising,
-  step = false,
   className = "",
 }: {
   values: number[];
   rising: boolean | null;
-  /** 월간 지표처럼 계단식으로 변하는 값 */
-  step?: boolean;
   className?: string;
 }) {
   if (values.length < 2) return null;
@@ -28,20 +26,18 @@ export default function Sparkline({
 
   let d = `M ${x(0).toFixed(2)} ${y(values[0]).toFixed(2)}`;
   for (let i = 1; i < n; i++) {
-    if (step) d += ` H ${x(i).toFixed(2)}`;
     d += ` L ${x(i).toFixed(2)} ${y(values[i]).toFixed(2)}`;
   }
   const area = `${d} L ${W} ${H} L 0 ${H} Z`;
 
-  // 한국 관례: 상승 빨강 / 하락 파랑 / 보합 회색
   const stroke =
-    rising == null ? "#a8a29e" : rising ? "#e11d48" : "#2563eb";
+    rising == null ? "var(--flat)" : rising ? "var(--up)" : "var(--down)";
   const fill =
     rising == null
-      ? "rgba(168,162,158,.10)"
+      ? "color-mix(in srgb, var(--flat) 14%, transparent)"
       : rising
-        ? "rgba(225,29,72,.10)"
-        : "rgba(37,99,235,.10)";
+        ? "color-mix(in srgb, var(--up) 14%, transparent)"
+        : "color-mix(in srgb, var(--down) 14%, transparent)";
 
   return (
     <svg
@@ -55,7 +51,7 @@ export default function Sparkline({
         d={d}
         fill="none"
         stroke={stroke}
-        strokeWidth="1.4"
+        strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"

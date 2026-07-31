@@ -10,15 +10,16 @@ export const num = (v: number | null | undefined, digits = 2) =>
 export const int = (v: number | null | undefined) =>
   v == null ? "-" : Math.round(v).toLocaleString("ko-KR");
 
-/** 한국 관례: 상승 빨강 / 하락 파랑 */
+/**
+ * 한국 관례: 상승 빨강 / 하락 파랑.
+ * 다크모드까지 한 번에 대응하려고 globals.css 의 토큰 유틸을 돌려준다.
+ */
 export const trend = (v: number | null | undefined) =>
-  v == null
-    ? "text-neutral-400"
-    : v > 0
-      ? "text-rose-600"
-      : v < 0
-        ? "text-blue-600"
-        : "text-neutral-500";
+  v == null ? "t-flat" : v > 0 ? "t-up" : v < 0 ? "t-down" : "t-flat";
+
+/** 등락 방향 → 배경/테두리에 쓸 CSS 변수 */
+export const trendVar = (v: number | null | undefined) =>
+  v == null || v === 0 ? "var(--flat)" : v > 0 ? "var(--up)" : "var(--down)";
 
 // ── 일별 리포트용 ────────────────────────────────────────
 

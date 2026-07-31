@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { naverLink, type NewsRow } from "@/lib/reportTypes";
 
 const SENTIMENT: Record<string, { label: string; cls: string }> = {
-  positive: { label: "호재", cls: "bg-rose-50 text-rose-700 border-rose-200" },
-  negative: { label: "악재", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  neutral: { label: "중립", cls: "bg-neutral-100 text-neutral-600 border-neutral-200" },
+  positive: { label: "호재", cls: "border-[var(--up)] bg-[var(--up-bg)] t-up" },
+  negative: { label: "악재", cls: "border-[var(--down)] bg-[var(--down-bg)] t-down" },
+  neutral: { label: "중립", cls: "bg-[var(--card-2)] text-[var(--fg-muted)] border-[var(--line)]" },
 };
 
 const timeKo = (ts: string | null) => {
@@ -56,9 +56,9 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="제목·요약·종목명 검색"
-          className="h-8 w-60 rounded border border-[var(--line)] bg-white px-2.5 text-[12px] outline-none focus:border-teal-600"
+          className="h-8 w-60 rounded border border-[var(--line)] bg-[var(--card)] px-2.5 text-[13px] outline-none focus:border-[var(--accent)]"
         />
-        <div className="inline-flex rounded border border-[var(--line)] bg-white p-0.5">
+        <div className="inline-flex rounded border border-[var(--line)] bg-[var(--card)] p-0.5">
           {(
             [
               ["all", "전체"],
@@ -70,10 +70,10 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
               key={k}
               type="button"
               onClick={() => setScope(k)}
-              className={`rounded px-2.5 py-1 text-[12px] font-medium transition ${
+              className={`rounded px-2.5 py-1 text-[13px] font-medium transition ${
                 scope === k
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-500 hover:text-neutral-900"
+                  ? "bg-[var(--fg)] text-white"
+                  : "text-[var(--fg-subtle)] hover:text-[var(--fg)]"
               }`}
             >
               {label}
@@ -83,7 +83,7 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
         <select
           value={kw}
           onChange={(e) => setKw(e.target.value)}
-          className="h-8 rounded border border-[var(--line)] bg-white px-2 text-[12px]"
+          className="h-8 rounded border border-[var(--line)] bg-[var(--card)] px-2 text-[13px]"
           aria-label="키워드 필터"
         >
           {keywords.map((k) => (
@@ -92,13 +92,13 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
             </option>
           ))}
         </select>
-        <span className="text-[11px] text-neutral-400 tabular">
+        <span className="text-[12px] text-[var(--fg-subtle)] tabular">
           {shown.length} / {rows.length}건
         </span>
       </div>
 
       {shown.length === 0 ? (
-        <p className="rounded-lg border border-[var(--line)] bg-white p-6 text-center text-sm text-neutral-500">
+        <p className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-6 text-center text-sm text-[var(--fg-subtle)]">
           조건에 맞는 기사가 없습니다.
         </p>
       ) : (
@@ -114,22 +114,22 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
                 <div className="flex flex-wrap items-center gap-1">
                   {s && (
                     <span
-                      className={`rounded border px-1.5 py-px text-[10px] font-medium ${s.cls}`}
+                      className={`rounded border px-1.5 py-px text-[12px] font-medium ${s.cls}`}
                     >
                       {s.label}
                     </span>
                   )}
                   {n.theme_kw && (
-                    <span className="rounded bg-sky-50 px-1.5 py-px text-[10px] text-sky-700">
+                    <span className="rounded bg-[var(--accent-bg)] px-1.5 py-px text-[12px] text-[var(--accent-fg)]">
                       {n.theme_kw}
                     </span>
                   )}
                   {n.issue_kw && (
-                    <span className="rounded bg-orange-50 px-1.5 py-px text-[10px] text-orange-700">
+                    <span className="rounded bg-[var(--warn-bg)] px-1.5 py-px text-[12px] text-[var(--warn-fg)]">
                       {n.issue_kw}
                     </span>
                   )}
-                  <span className="ml-auto text-[10px] text-neutral-400 tabular">
+                  <span className="ml-auto text-[12px] text-[var(--fg-subtle)] tabular">
                     {[n.press, when].filter(Boolean).join(" · ")}
                   </span>
                 </div>
@@ -138,13 +138,13 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
                   href={n.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1.5 text-[13px] font-bold leading-snug text-neutral-900 hover:text-teal-700 hover:underline"
+                  className="mt-1.5 text-[14px] font-bold leading-snug text-[var(--fg)] hover:text-[var(--accent-fg)] hover:underline"
                 >
                   {n.title}
                 </a>
 
                 {n.summary && (
-                  <p className="mt-1.5 flex-1 text-[12px] leading-relaxed text-neutral-600">
+                  <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-[var(--fg-muted)]">
                     {n.summary}
                   </p>
                 )}
@@ -159,14 +159,14 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
                           href={naverLink(code)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="rounded bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-600 hover:bg-neutral-100 hover:text-teal-700"
+                          className="rounded bg-[var(--card-2)] px-1.5 py-0.5 text-[12px] text-[var(--fg-muted)] hover:bg-[var(--card-2)] hover:text-[var(--accent-fg)]"
                         >
                           {name}
                         </a>
                       ) : (
                         <span
                           key={`${name}-${i}`}
-                          className="rounded bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-500"
+                          className="rounded bg-[var(--card-2)] px-1.5 py-0.5 text-[12px] text-[var(--fg-subtle)]"
                         >
                           {name}
                         </span>

@@ -3,6 +3,7 @@ import { Nanum_Gothic } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import NavLinks from "@/components/NavLinks";
+import ThemeToggle, { THEME_INIT_SCRIPT } from "@/components/ThemeToggle";
 
 const nanumGothic = Nanum_Gothic({
   subsets: ["latin"],
@@ -22,30 +23,52 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        {/* 첫 페인트 전에 테마를 적용해 깜빡임을 막는다 */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className={nanumGothic.variable}>
-        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-white/85 backdrop-blur">
-          <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
+        <header
+          className="sticky top-0 z-40 border-b backdrop-blur"
+          style={{
+            borderColor: "var(--line)",
+            background: "color-mix(in srgb, var(--bg) 85%, transparent)",
+          }}
+        >
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-teal-700 text-[13px] font-bold text-white">
+              <span
+                className="grid h-8 w-8 place-items-center rounded-md text-[15px] font-bold text-white"
+                style={{ background: "var(--accent)" }}
+              >
                 K
               </span>
-              <span className="text-[15px] font-semibold tracking-tight">
+              <span className="text-[17px] font-bold tracking-tight">
                 국내 증시 일별 분석
               </span>
             </Link>
 
             <NavLinks />
 
-            <span className="ml-auto hidden text-xs text-neutral-500 lg:block">
-              KRX · FRED · 한국은행 · OpenDART · 네이버
-            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <span
+                className="hidden text-[13px] xl:block"
+                style={{ color: "var(--fg-subtle)" }}
+              >
+                KRX · FRED · 한국은행 · OpenDART · 네이버
+              </span>
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1500px] px-5 py-6">{children}</main>
+        <main className="mx-auto max-w-[1600px] px-5 py-6">{children}</main>
 
-        <footer className="mx-auto max-w-[1500px] px-5 pb-10 pt-4 text-xs leading-relaxed text-neutral-400">
+        <footer
+          className="mx-auto max-w-[1600px] px-5 pb-10 pt-4 text-[13px] leading-relaxed"
+          style={{ color: "var(--fg-subtle)" }}
+        >
           모든 수치는 Supabase에 적재된 수집 결과를 그대로 표시합니다. 투자
           판단의 근거가 아닌 <strong>탐색 보조 도구</strong>이며, 밸류에이션
           지표는 KRX 공시 반영 기준이라 시차가 있을 수 있습니다.

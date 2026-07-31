@@ -18,7 +18,7 @@ export default async function Page({
     return (
       <div className="space-y-4">
         <h1 className="text-[19px] font-bold tracking-tight">뉴스</h1>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        <div className="rounded-lg border border-[var(--warn-line)] bg-[var(--warn-bg)] p-6 text-sm text-[var(--warn-fg)]">
           리포트 날짜가 없습니다.
         </div>
       </div>
@@ -37,7 +37,7 @@ export default async function Page({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[19px] font-bold tracking-tight">뉴스</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">
+          <p className="mt-0.5 text-xs text-[var(--fg-subtle)]">
             {dateKo(baseDate)} · 당일 스크리닝 종목 관련 기사와 시장 뉴스
           </p>
         </div>
@@ -45,7 +45,7 @@ export default async function Page({
       </div>
 
       {rows.length === 0 ? (
-        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        <div className="space-y-3 rounded-lg border border-[var(--warn-line)] bg-[var(--warn-bg)] p-6 text-sm text-[var(--warn-fg)]">
           <p className="font-semibold">
             {baseDate} 의 뉴스가 아직 적재되지 않았습니다.
           </p>

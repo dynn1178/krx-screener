@@ -169,18 +169,22 @@ export async function getMacroBoard(baseDate: string): Promise<{
         ? (change / Math.abs(prev)) * 100
         : null;
 
-    // 스파크라인: 일간=최근 6개월 전 구간, 그 외=최근 13개월의 값 변화 시점만
+    // 스파크라인
     let spark: number[] = [];
     if (daily) {
       spark = pts.filter((p) => p.date >= sparkStart).map((p) => p.v);
     } else {
+      // 월간 지표는 "값이 바뀐 시점"만 뽑으면 변화 없는 달이 통째로 빠져
+      // 가로축이 시간이 아니게 된다. 월별로 1포인트씩 고정해 시간축을 지킨다.
       const since = shiftMonths(baseDate, 13);
-      const seen: number[] = [];
+      const byMonth = new Map<string, number>();
       for (const p of pts) {
         if (p.date < since) continue;
-        if (!seen.length || seen[seen.length - 1] !== p.v) seen.push(p.v);
+        byMonth.set(p.date.slice(0, 7), p.v); // 그 달의 마지막 값
       }
-      spark = seen;
+      spark = [...byMonth.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => v);
     }
     // 표본이 너무 많으면 균등 샘플링 (SVG 경로 길이 억제)
     if (spark.length > 200) {

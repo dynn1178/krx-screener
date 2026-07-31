@@ -13,7 +13,6 @@ import {
   getMacroBoard,
   getCommentary,
   getSectorPerf,
-  getFxRates,
   getReportRows,
   getDailyBrief,
   getGlobalIndices,
@@ -31,9 +30,9 @@ function Notice({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-      <h2 className="text-base font-semibold text-amber-900">{title}</h2>
-      <div className="mt-2 text-sm leading-relaxed text-amber-800">
+    <div className="rounded-lg border border-[var(--warn-line)] bg-[var(--warn-bg)] p-6">
+      <h2 className="text-base font-semibold text-[var(--warn-fg)]">{title}</h2>
+      <div className="mt-2 text-sm leading-relaxed text-[var(--warn-fg)]">
         {children}
       </div>
     </div>
@@ -88,12 +87,11 @@ export default async function Page({
     );
   }
 
-  const [macro, commentary, sectors, fx, rows, brief, global, spark] =
+  const [macro, commentary, sectors, rows, brief, global, spark] =
     await Promise.all([
       getMacroBoard(baseDate),
       getCommentary(baseDate),
       getSectorPerf(baseDate),
-      getFxRates(baseDate),
       getReportRows(baseDate),
       getDailyBrief(baseDate),
       getGlobalIndices(baseDate),
@@ -112,13 +110,13 @@ export default async function Page({
       </div>
 
       {meta && !meta.has_commentary && !meta.has_summary && (
-        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+        <p className="rounded-md border border-[var(--line)] bg-[var(--card-2)] px-3 py-2 text-xs text-[var(--fg-muted)]">
           이 날짜는 시세 데이터만 적재되어 있고 서술형 시황·뉴스 분석은 아직
           없습니다. 아래 스크리닝 표는 시세 기준으로 자동 산출한 결과입니다.
         </p>
       )}
 
-      <MarketHeader c={commentary} fx={fx} global={global} spark={spark} />
+      <MarketHeader c={commentary} global={global} spark={spark} />
 
       <MacroBoard
         cards={macro.cards}
