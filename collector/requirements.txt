@@ -4,3 +4,8 @@ pandas>=2.0
 requests>=2.31
 supabase>=2.10
 lxml>=4.9
+fredapi
+requests
+supabase
+pandas
+pykrx
