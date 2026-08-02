@@ -101,6 +101,8 @@ export type ReportRow = {
   sector: string | null;
   category: string | null;
   open: number | null;
+  high: number | null;
+  low: number | null;
   close: number | null;
   prevClose: number | null;
   changePrice: number | null;

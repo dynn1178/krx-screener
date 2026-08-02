@@ -328,7 +328,7 @@ export async function getDailyBrief(
 // ──────────────────────────────────────────────────────────
 
 const MOVER_COLS =
-  "ticker,name,market,sector,open,close,prev_close,change_price,change_rate," +
+  "ticker,name,market,sector,open,high,low,close,prev_close,change_price,change_rate," +
   "swing_pct,trade_value,market_cap,foreign_net_buy,inst_net_buy,indiv_net_buy,category";
 
 type MoverRaw = Record<string, unknown>;
@@ -389,6 +389,8 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
       sector: (r.sector as string) ?? null,
       category: (r.category as string) ?? null,
       open: asNum(r.open),
+      high: asNum(r.high),
+      low: asNum(r.low),
       close: asNum(r.close),
       prevClose: asNum(r.prev_close),
       changePrice: asNum(r.change_price),

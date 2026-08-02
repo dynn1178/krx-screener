@@ -67,6 +67,39 @@ function Chip({
   );
 }
 
+/** 관련 종목 — 쉼표로 나열된 원문을 개별 뱃지로 부각해서 보여준다 */
+function RelatedChips({ text }: { text: string }) {
+  const names = text
+    .split(/[,、·]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!names.length) return null;
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+      <span
+        className="text-[12px] font-semibold"
+        style={{ color: "var(--fg-subtle)" }}
+      >
+        관련
+      </span>
+      {names.map((n, i) => (
+        <span
+          key={i}
+          className="inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-bold"
+          style={{
+            borderColor: "var(--accent)",
+            background: "var(--accent-bg)",
+            color: "var(--accent-fg)",
+          }}
+        >
+          {n}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function MoversTable({
   rows,
   baseDate,
@@ -196,11 +229,11 @@ export default function MoversTable({
       </div>
 
       <div
-        className="overflow-x-auto rounded-xl border"
+        className="max-h-[75vh] overflow-auto rounded-xl border"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
-        <table className="w-full min-w-[1180px] border-collapse text-[14px]">
-          <thead>
+        <table className="w-full min-w-[1320px] border-collapse text-[14px]">
+          <thead className="sticky top-0 z-10">
             <tr
               className="border-b text-left"
               style={{
@@ -212,6 +245,8 @@ export default function MoversTable({
               <th className={`${th} text-left`}>종목</th>
               <th className={`${th} text-right`}>시가</th>
               <th className={`${th} text-right`}>종가</th>
+              <th className={`${th} text-right`}>장중 저가</th>
+              <th className={`${th} text-right`}>장중 고가</th>
               <th className={`${th} text-right`}>증감가</th>
               <th className={`${th} text-right`}>등락률</th>
               <th className={`${th} text-right`}>거래대금</th>
@@ -260,6 +295,12 @@ export default function MoversTable({
                   </td>
                   <td className="px-3 py-3 text-right font-bold tabular">
                     {int(r.close)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular t-down">
+                    {int(r.low)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular t-up">
+                    {int(r.high)}
                   </td>
                   <td className={`px-3 py-3 text-right tabular ${trend(r.changePrice)}`}>
                     {signedInt(r.changePrice)}
@@ -320,14 +361,7 @@ export default function MoversTable({
                         <span style={{ color: "var(--fg-subtle)" }}>—</span>
                       )}
                     </p>
-                    {r.related && (
-                      <p
-                        className="mt-1.5 text-[12px]"
-                        style={{ color: "var(--fg-subtle)" }}
-                      >
-                        관련 · {r.related}
-                      </p>
-                    )}
+                    {r.related && <RelatedChips text={r.related} />}
                     {r.refs.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {r.refs.map((a, i) => (
