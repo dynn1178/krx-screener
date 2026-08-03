@@ -1,7 +1,7 @@
 name: 매크로 지표 수집
 on:
   schedule:
-    - cron: "0 9 * * 1-5"   # 18:00 KST
+    - cron: "50 8 * * 1-5"   # 17:50 KST
   workflow_dispatch:
 
 concurrency:
