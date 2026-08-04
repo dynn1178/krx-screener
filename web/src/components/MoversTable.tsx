@@ -59,12 +59,14 @@ function StatRow({
   return (
     <div className="flex items-baseline justify-between gap-2" title={title}>
       <span
-        className="shrink-0 text-[11px]"
+        className="shrink-0 whitespace-nowrap text-[11px]"
         style={{ color: "var(--fg-subtle)" }}
       >
         {label}
       </span>
-      <span className={`tabular text-[13px] ${valueClassName}`}>{value}</span>
+      <span className={`tabular whitespace-nowrap text-[13px] ${valueClassName}`}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -267,7 +269,17 @@ export default function MoversTable({
         className="max-h-[75vh] overflow-auto rounded-xl border"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
-        <table className="w-full border-collapse text-[14px]">
+        <table className="w-full table-fixed border-collapse text-[14px]">
+          <colgroup>
+            <col className="w-[280px]" />
+            <col className="w-[150px]" />
+            <col className="w-[150px]" />
+            <col className="w-[150px]" />
+            <col className="w-[120px]" />
+            <col className="w-[150px]" />
+            <col className="w-[160px]" />
+            <col />
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr
               className="border-b text-left"
@@ -377,7 +389,7 @@ export default function MoversTable({
                     />
                     {r.swingPct != null && (
                       <div
-                        className="mt-0.5 text-right text-[11px]"
+                        className="mt-0.5 whitespace-nowrap text-right text-[11px]"
                         style={{ color: "var(--fg-subtle)" }}
                       >
                         변동폭 {r.swingPct.toFixed(2)}%
@@ -429,7 +441,7 @@ export default function MoversTable({
                     </div>
                   </td>
 
-                  <td className="min-w-[340px] px-3 py-3">
+                  <td className="px-3 py-3">
                     <p
                       className="text-[13px] leading-relaxed"
                       style={{ color: "var(--fg-muted)" }}
