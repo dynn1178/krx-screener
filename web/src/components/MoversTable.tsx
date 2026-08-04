@@ -44,6 +44,31 @@ const signedInt = (v: number | null) =>
     ? "—"
     : `${v > 0 ? "+" : v < 0 ? "-" : ""}${Math.abs(Math.round(v)).toLocaleString("ko-KR")}`;
 
+/** 칸 하나에 라벨:값을 여러 줄로 쌓아 컬럼 수를 줄인다 */
+function StatRow({
+  label,
+  value,
+  valueClassName = "",
+  title,
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClassName?: string;
+  title?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2" title={title}>
+      <span
+        className="shrink-0 text-[11px]"
+        style={{ color: "var(--fg-subtle)" }}
+      >
+        {label}
+      </span>
+      <span className={`tabular text-[13px] ${valueClassName}`}>{value}</span>
+    </div>
+  );
+}
+
 function NetBuy({ v }: { v: number | null }) {
   if (v == null) return <span style={{ color: "var(--fg-subtle)" }}>—</span>;
   return (
@@ -242,7 +267,7 @@ export default function MoversTable({
         className="max-h-[75vh] overflow-auto rounded-xl border"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
-        <table className="w-full min-w-[1500px] border-collapse text-[14px]">
+        <table className="w-full border-collapse text-[14px]">
           <thead className="sticky top-0 z-10">
             <tr
               className="border-b text-left"
@@ -253,21 +278,13 @@ export default function MoversTable({
               }}
             >
               <th className={`${th} text-left`}>종목</th>
-              <th className={`${th} text-right`}>시가~종가</th>
-              <th className={`${th} text-right`}>장중 저가~고가</th>
-              <th className={`${th} text-right`}>증감가</th>
-              <th className={`${th} text-right`}>등락률</th>
-              <th className={`${th} text-right`}>거래대금</th>
-              <th className={`${th} text-right`}>시가총액</th>
-              <th className={`${th} text-right`}>PER</th>
-              <th className={`${th} text-right`}>PBR</th>
-              <th className={`${th} text-right`}>EPS</th>
+              <th className={`${th} text-right`}>등락률 · 증감가</th>
+              <th className={`${th} text-right`}>거래대금 · 시가총액</th>
+              <th className={`${th} text-right`}>수급 (외국인 · 기관 · 개인)</th>
+              <th className={`${th} text-right`}>밸류에이션</th>
               <th className={`${th} text-left`}>구분값</th>
               <th className={`${th} text-left`}>산업 · 테마 · 이슈</th>
               <th className={`${th} text-left`}>상승/하락 이슈</th>
-              <th className={`${th} text-right`}>외국인</th>
-              <th className={`${th} text-right`}>기관</th>
-              <th className={`${th} text-right`}>개인</th>
             </tr>
           </thead>
           <tbody>
@@ -279,70 +296,107 @@ export default function MoversTable({
                   className="border-b align-top"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  {/* 종목명 + 코드를 한 칸에 세로로 */}
+                  {/* 종목명 + 코드/시장 + 가격 스택(전일종가~장중고가) */}
                   <td className="px-3 py-3">
-                    <a
-                      href={naverLink(r.ticker)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="네이버 증권에서 보기"
-                      className="text-[15px] font-bold hover:underline"
-                    >
-                      {r.name}
-                    </a>
-                    <div
-                      className="mt-0.5 text-[12px] tabular"
-                      style={{ color: "var(--fg-subtle)" }}
-                    >
-                      {r.ticker}
-                      {r.market ? ` · ${r.market}` : ""}
+                    <div className="flex gap-3">
+                      <div className="w-[86px] shrink-0">
+                        <a
+                          href={naverLink(r.ticker)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="네이버 증권에서 보기"
+                          className="text-[15px] font-bold hover:underline"
+                        >
+                          {r.name}
+                        </a>
+                        <div
+                          className="mt-0.5 text-[12px] tabular"
+                          style={{ color: "var(--fg-subtle)" }}
+                        >
+                          {r.ticker}
+                        </div>
+                        {r.market && (
+                          <div
+                            className="text-[12px]"
+                            style={{ color: "var(--fg-subtle)" }}
+                          >
+                            {r.market}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="min-w-[130px] space-y-0.5 border-l pl-3"
+                        style={{ borderColor: "var(--line)" }}
+                      >
+                        <StatRow label="전일 종가" value={int(r.prevClose)} />
+                        <StatRow label="시가" value={int(r.open)} />
+                        <StatRow
+                          label="종가"
+                          value={int(r.close)}
+                          valueClassName="font-bold"
+                        />
+                        <StatRow
+                          label="장중 저가"
+                          value={int(r.low)}
+                          valueClassName="t-down"
+                        />
+                        <StatRow
+                          label="장중 고가"
+                          value={int(r.high)}
+                          valueClassName="t-up"
+                        />
+                      </div>
                     </div>
                   </td>
 
-                  <td
-                    className="px-3 py-3 text-right tabular"
-                    title={`시가 ${int(r.open)} · 종가 ${int(r.close)}`}
-                  >
-                    <span style={{ color: "var(--fg-muted)" }}>{int(r.open)}</span>
-                    <span className="mx-1" style={{ color: "var(--fg-subtle)" }}>~</span>
-                    <span className="font-bold">{int(r.close)}</span>
+                  {/* 등락률 · 증감가 */}
+                  <td className="px-3 py-3">
+                    <StatRow
+                      label="등락률"
+                      value={pct2(r.changeRate)}
+                      valueClassName={`text-[14px] font-bold ${trend(r.changeRate)}`}
+                    />
+                    <StatRow
+                      label="증감가"
+                      value={signedInt(r.changePrice)}
+                      valueClassName={trend(r.changePrice)}
+                    />
                   </td>
-                  <td
-                    className="px-3 py-3 text-right tabular"
-                    title={`장중 저가 ${int(r.low)} · 장중 고가 ${int(r.high)}`}
-                  >
-                    <span className="t-down">{int(r.low)}</span>
-                    <span className="mx-1" style={{ color: "var(--fg-subtle)" }}>~</span>
-                    <span className="t-up">{int(r.high)}</span>
-                  </td>
-                  <td className={`px-3 py-3 text-right tabular ${trend(r.changePrice)}`}>
-                    {signedInt(r.changePrice)}
-                  </td>
-                  <td
-                    className={`px-3 py-3 text-right text-[15px] font-bold tabular ${trend(r.changeRate)}`}
-                  >
-                    {pct2(r.changeRate)}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular" title={wonFull(r.tradeValue)}>
-                    {wonShort(r.tradeValue)}
+
+                  {/* 거래대금 · 시가총액 */}
+                  <td className="px-3 py-3">
+                    <StatRow
+                      label="거래대금"
+                      value={wonShort(r.tradeValue)}
+                      title={wonFull(r.tradeValue)}
+                    />
+                    <StatRow
+                      label="시가총액"
+                      value={marketCapShort(r.marketCap)}
+                      title={wonFull(r.marketCap)}
+                    />
                     {r.swingPct != null && (
                       <div
-                        className="text-[12px]"
+                        className="mt-0.5 text-right text-[11px]"
                         style={{ color: "var(--fg-subtle)" }}
                       >
                         변동폭 {r.swingPct.toFixed(2)}%
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-right tabular" title={wonFull(r.marketCap)}>
-                    {marketCapShort(r.marketCap)}
+
+                  {/* 수급 — 외국인 · 기관 · 개인 */}
+                  <td className="px-3 py-3">
+                    <StatRow label="외국인" value={<NetBuy v={r.foreignNetBuy} />} />
+                    <StatRow label="기관" value={<NetBuy v={r.instNetBuy} />} />
+                    <StatRow label="개인" value={<NetBuy v={r.indivNetBuy} />} />
                   </td>
-                  <td className="px-3 py-3 text-right tabular">
-                    {perFmt(r.per, r.eps)}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular">{num(r.pbr)}</td>
-                  <td className="px-3 py-3 text-right tabular">
-                    {epsFmt(r.eps, r.per)}
+
+                  {/* 밸류에이션 — PER · PBR · EPS */}
+                  <td className="px-3 py-3">
+                    <StatRow label="PER" value={perFmt(r.per, r.eps)} />
+                    <StatRow label="PBR" value={num(r.pbr)} />
+                    <StatRow label="EPS" value={epsFmt(r.eps, r.per)} />
                   </td>
 
                   <td className="px-3 py-3">
@@ -404,16 +458,6 @@ export default function MoversTable({
                         ))}
                       </div>
                     )}
-                  </td>
-
-                  <td className="px-3 py-3 text-right tabular">
-                    <NetBuy v={r.foreignNetBuy} />
-                  </td>
-                  <td className="px-3 py-3 text-right tabular">
-                    <NetBuy v={r.instNetBuy} />
-                  </td>
-                  <td className="px-3 py-3 text-right tabular">
-                    <NetBuy v={r.indivNetBuy} />
                   </td>
                 </tr>
               );
