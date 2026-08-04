@@ -363,9 +363,14 @@ export default function MoversTable({
                       value={signedInt(r.changePrice)}
                       valueClassName={trend(r.changePrice)}
                     />
-                    <StatRow label="외국인" value={<NetBuy v={r.foreignNetBuy} />} />
-                    <StatRow label="기관" value={<NetBuy v={r.instNetBuy} />} />
-                    <StatRow label="개인" value={<NetBuy v={r.indivNetBuy} />} />
+                    <div
+                      className="mt-1 space-y-0.5 border-t pt-1"
+                      style={{ borderColor: "var(--line)" }}
+                    >
+                      <StatRow label="외국인" value={<NetBuy v={r.foreignNetBuy} />} />
+                      <StatRow label="기관" value={<NetBuy v={r.instNetBuy} />} />
+                      <StatRow label="개인" value={<NetBuy v={r.indivNetBuy} />} />
+                    </div>
                   </td>
 
                   {/* 거래대금 · 시가총액 (좌) + 밸류에이션 PER·PBR·EPS (우) */}
