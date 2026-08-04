@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { wonShort, wonFull, pct2, trend, int } from "@/lib/format";
+import {
+  wonShort,
+  wonFull,
+  pct2,
+  trend,
+  int,
+  num,
+  marketCapShort,
+  perFmt,
+  epsFmt,
+} from "@/lib/format";
 import { naverLink, type ReportRow } from "@/lib/reportTypes";
 
 const CATEGORIES = ["전체", "급등주", "급락주", "6%이상변동", "거래대금상위"] as const;
@@ -232,7 +242,7 @@ export default function MoversTable({
         className="max-h-[75vh] overflow-auto rounded-xl border"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
-        <table className="w-full min-w-[1320px] border-collapse text-[14px]">
+        <table className="w-full min-w-[1500px] border-collapse text-[14px]">
           <thead className="sticky top-0 z-10">
             <tr
               className="border-b text-left"
@@ -243,13 +253,15 @@ export default function MoversTable({
               }}
             >
               <th className={`${th} text-left`}>종목</th>
-              <th className={`${th} text-right`}>시가</th>
-              <th className={`${th} text-right`}>종가</th>
-              <th className={`${th} text-right`}>장중 저가</th>
-              <th className={`${th} text-right`}>장중 고가</th>
+              <th className={`${th} text-right`}>시가~종가</th>
+              <th className={`${th} text-right`}>장중 저가~고가</th>
               <th className={`${th} text-right`}>증감가</th>
               <th className={`${th} text-right`}>등락률</th>
               <th className={`${th} text-right`}>거래대금</th>
+              <th className={`${th} text-right`}>시가총액</th>
+              <th className={`${th} text-right`}>PER</th>
+              <th className={`${th} text-right`}>PBR</th>
+              <th className={`${th} text-right`}>EPS</th>
               <th className={`${th} text-left`}>구분값</th>
               <th className={`${th} text-left`}>산업 · 테마 · 이슈</th>
               <th className={`${th} text-left`}>상승/하락 이슈</th>
@@ -289,18 +301,19 @@ export default function MoversTable({
 
                   <td
                     className="px-3 py-3 text-right tabular"
-                    style={{ color: "var(--fg-muted)" }}
+                    title={`시가 ${int(r.open)} · 종가 ${int(r.close)}`}
                   >
-                    {int(r.open)}
+                    <span style={{ color: "var(--fg-muted)" }}>{int(r.open)}</span>
+                    <span className="mx-1" style={{ color: "var(--fg-subtle)" }}>~</span>
+                    <span className="font-bold">{int(r.close)}</span>
                   </td>
-                  <td className="px-3 py-3 text-right font-bold tabular">
-                    {int(r.close)}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular t-down">
-                    {int(r.low)}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular t-up">
-                    {int(r.high)}
+                  <td
+                    className="px-3 py-3 text-right tabular"
+                    title={`장중 저가 ${int(r.low)} · 장중 고가 ${int(r.high)}`}
+                  >
+                    <span className="t-down">{int(r.low)}</span>
+                    <span className="mx-1" style={{ color: "var(--fg-subtle)" }}>~</span>
+                    <span className="t-up">{int(r.high)}</span>
                   </td>
                   <td className={`px-3 py-3 text-right tabular ${trend(r.changePrice)}`}>
                     {signedInt(r.changePrice)}
@@ -320,6 +333,16 @@ export default function MoversTable({
                         변동폭 {r.swingPct.toFixed(2)}%
                       </div>
                     )}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular" title={wonFull(r.marketCap)}>
+                    {marketCapShort(r.marketCap)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular">
+                    {perFmt(r.per, r.eps)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular">{num(r.pbr)}</td>
+                  <td className="px-3 py-3 text-right tabular">
+                    {epsFmt(r.eps, r.per)}
                   </td>
 
                   <td className="px-3 py-3">

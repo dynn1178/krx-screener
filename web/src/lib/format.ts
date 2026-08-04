@@ -43,6 +43,36 @@ export const wonFull = (v: number | null | undefined) =>
 export const pct2 = (v: number | null | undefined, sign = true) =>
   v == null ? "-" : `${sign && v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 
+/** 시가총액을 조/억 단위로 축약 — 1403106865920000 → "1,403조" */
+export const marketCapShort = (v: number | null | undefined) => {
+  if (v == null) return "-";
+  const a = Math.abs(v);
+  if (a >= 1e12) return `${Math.round(v / 1e12).toLocaleString("ko-KR")}조`;
+  if (a >= 1e8) return `${Math.round(v / 1e8).toLocaleString("ko-KR")}억`;
+  return Math.round(v).toLocaleString("ko-KR");
+};
+
+/** PER·EPS 는 적자 기업에서 0으로 저장되므로 숫자 대신 "적자"로 표기한다 */
+export const perFmt = (
+  per: number | null | undefined,
+  eps: number | null | undefined
+) =>
+  per == null || eps == null ? "-" : per === 0 || eps === 0 ? "적자" : per.toFixed(1);
+
+export const epsFmt = (
+  eps: number | null | undefined,
+  per: number | null | undefined
+) =>
+  eps == null || per == null
+    ? "-"
+    : per === 0 || eps === 0
+      ? "적자"
+      : Math.round(eps).toLocaleString("ko-KR");
+
+/** 배당수익률 0은 미지급을 뜻하므로 "-"로 표기한다 */
+export const divFmt = (v: number | null | undefined) =>
+  v == null || v === 0 ? "-" : v.toFixed(2);
+
 export const signed = (v: number | null | undefined, digits = 2) =>
   v == null ? "-" : `${v > 0 ? "+" : ""}${v.toFixed(digits)}`;
 

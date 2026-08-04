@@ -110,6 +110,9 @@ export type ReportRow = {
   swingPct: number | null;
   tradeValue: number | null;
   marketCap: number | null;
+  per: number | null;
+  pbr: number | null;
+  eps: number | null;
   foreignNetBuy: number | null;
   instNetBuy: number | null;
   indivNetBuy: number | null;

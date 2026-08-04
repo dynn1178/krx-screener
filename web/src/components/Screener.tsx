@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { eok, int, num, pct, trend } from "@/lib/format";
+import { eok, int, num, pct, trend, divFmt } from "@/lib/format";
 import { screen, toCsv } from "@/lib/screen";
 import {
   DEFAULT_FILTERS,
@@ -354,7 +354,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                         <Td>{num(r.pbr)}</Td>
                         <Td>{int(r.eps)}</Td>
                         <Td>{int(r.bps)}</Td>
-                        <Td>{num(r.div)}</Td>
+                        <Td>{divFmt(r.div)}</Td>
                         <td className="px-3 py-2">
                           <div className="flex items-center justify-end gap-2">
                             <div className="h-1.5 w-10 overflow-hidden rounded-full bg-[var(--card-2)]">
