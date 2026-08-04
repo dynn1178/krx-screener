@@ -113,17 +113,11 @@ function RelatedChips({ text }: { text: string }) {
   if (!names.length) return null;
 
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1">
-      <span
-        className="text-[12px] font-semibold"
-        style={{ color: "var(--fg-subtle)" }}
-      >
-        관련
-      </span>
+    <div className="flex flex-col items-end gap-1">
       {names.map((n, i) => (
         <span
           key={i}
-          className="inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-bold"
+          className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-bold"
           style={{
             borderColor: "var(--accent)",
             background: "var(--accent-bg)",
@@ -273,9 +267,7 @@ export default function MoversTable({
           <colgroup>
             <col className="w-[280px]" />
             <col className="w-[150px]" />
-            <col className="w-[150px]" />
-            <col className="w-[150px]" />
-            <col className="w-[120px]" />
+            <col className="w-[230px]" />
             <col className="w-[150px]" />
             <col className="w-[160px]" />
             <col />
@@ -292,8 +284,6 @@ export default function MoversTable({
               <th className={`${th} text-left`}>종목</th>
               <th className={`${th} text-right`}>등락률 · 증감가</th>
               <th className={`${th} text-right`}>거래대금 · 시가총액</th>
-              <th className={`${th} text-right`}>수급 (외국인 · 기관 · 개인)</th>
-              <th className={`${th} text-right`}>밸류에이션</th>
               <th className={`${th} text-left`}>구분값</th>
               <th className={`${th} text-left`}>산업 · 테마 · 이슈</th>
               <th className={`${th} text-left`}>상승/하락 이슈</th>
@@ -361,7 +351,7 @@ export default function MoversTable({
                     </div>
                   </td>
 
-                  {/* 등락률 · 증감가 */}
+                  {/* 등락률 · 증감가 + 수급(외국인 · 기관 · 개인) */}
                   <td className="px-3 py-3">
                     <StatRow
                       label="등락률"
@@ -373,42 +363,43 @@ export default function MoversTable({
                       value={signedInt(r.changePrice)}
                       valueClassName={trend(r.changePrice)}
                     />
-                  </td>
-
-                  {/* 거래대금 · 시가총액 */}
-                  <td className="px-3 py-3">
-                    <StatRow
-                      label="거래대금"
-                      value={wonShort(r.tradeValue)}
-                      title={wonFull(r.tradeValue)}
-                    />
-                    <StatRow
-                      label="시가총액"
-                      value={marketCapShort(r.marketCap)}
-                      title={wonFull(r.marketCap)}
-                    />
-                    {r.swingPct != null && (
-                      <div
-                        className="mt-0.5 whitespace-nowrap text-right text-[11px]"
-                        style={{ color: "var(--fg-subtle)" }}
-                      >
-                        변동폭 {r.swingPct.toFixed(2)}%
-                      </div>
-                    )}
-                  </td>
-
-                  {/* 수급 — 외국인 · 기관 · 개인 */}
-                  <td className="px-3 py-3">
                     <StatRow label="외국인" value={<NetBuy v={r.foreignNetBuy} />} />
                     <StatRow label="기관" value={<NetBuy v={r.instNetBuy} />} />
                     <StatRow label="개인" value={<NetBuy v={r.indivNetBuy} />} />
                   </td>
 
-                  {/* 밸류에이션 — PER · PBR · EPS */}
+                  {/* 거래대금 · 시가총액 (좌) + 밸류에이션 PER·PBR·EPS (우) */}
                   <td className="px-3 py-3">
-                    <StatRow label="PER" value={perFmt(r.per, r.eps)} />
-                    <StatRow label="PBR" value={num(r.pbr)} />
-                    <StatRow label="EPS" value={epsFmt(r.eps, r.per)} />
+                    <div className="flex gap-3">
+                      <div className="min-w-[100px] space-y-0.5">
+                        <StatRow
+                          label="거래대금"
+                          value={wonShort(r.tradeValue)}
+                          title={wonFull(r.tradeValue)}
+                        />
+                        <StatRow
+                          label="시가총액"
+                          value={marketCapShort(r.marketCap)}
+                          title={wonFull(r.marketCap)}
+                        />
+                        {r.swingPct != null && (
+                          <div
+                            className="whitespace-nowrap text-right text-[11px]"
+                            style={{ color: "var(--fg-subtle)" }}
+                          >
+                            변동폭 {r.swingPct.toFixed(2)}%
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="min-w-[76px] space-y-0.5 border-l pl-3"
+                        style={{ borderColor: "var(--line)" }}
+                      >
+                        <StatRow label="PER" value={perFmt(r.per, r.eps)} />
+                        <StatRow label="PBR" value={num(r.pbr)} />
+                        <StatRow label="EPS" value={epsFmt(r.eps, r.per)} />
+                      </div>
+                    </div>
                   </td>
 
                   <td className="px-3 py-3">
@@ -442,28 +433,31 @@ export default function MoversTable({
                   </td>
 
                   <td className="px-3 py-3">
-                    <p
-                      className="text-[13px] leading-relaxed"
-                      style={{ color: "var(--fg-muted)" }}
-                    >
-                      {r.issueNote ?? (
-                        <span style={{ color: "var(--fg-subtle)" }}>—</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className="min-w-0 flex-1 text-[13px] leading-relaxed"
+                        style={{ color: "var(--fg-muted)" }}
+                      >
+                        {r.issueNote ?? (
+                          <span style={{ color: "var(--fg-subtle)" }}>—</span>
+                        )}
+                      </p>
+                      {r.related && (
+                        <div className="shrink-0">
+                          <RelatedChips text={r.related} />
+                        </div>
                       )}
-                    </p>
-                    {r.related && <RelatedChips text={r.related} />}
+                    </div>
                     {r.refs.length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-1">
+                      <div className="mt-1.5 space-y-0.5">
                         {r.refs.map((a, i) => (
                           <a
                             key={i}
                             href={a.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded border px-1.5 py-0.5 text-[11px] hover:underline"
-                            style={{
-                              borderColor: "var(--line)",
-                              color: "var(--fg-subtle)",
-                            }}
+                            className="block truncate text-[12px] hover:underline"
+                            style={{ color: "var(--fg-subtle)" }}
                           >
                             📰 {a.title ?? `기사 ${i + 1}`}
                           </a>
