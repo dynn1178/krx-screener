@@ -163,6 +163,8 @@ export type FlowSignal = {
   ticker: string;
   name: string | null;
   market: string | null;
+  themeKw: string | null;
+  industryKw: string | null;
   changeRate: number | null;
   tradeValue: number | null;
   foreignNetBuy: number | null;

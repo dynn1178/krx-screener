@@ -475,27 +475,53 @@ export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
 
 /** 전일 대비 외국인·기관 순매수 방향이 뒤집힌 종목 */
 export async function getFlowSignals(baseDate: string): Promise<FlowSignal[]> {
-  const { data, error } = await supabase
-    .from("investor_flow_signal")
-    .select("*")
-    .eq("base_date", baseDate)
-    .or("foreign_turn.not.is.null,inst_turn.not.is.null")
-    .order("trade_value", { ascending: false, nullsFirst: false })
-    .limit(30);
-  if (error) throw new Error(`investor_flow_signal: ${error.message}`);
+  const [flowRes, analysisRes] = await Promise.all([
+    supabase
+      .from("investor_flow_signal")
+      .select("*")
+      .eq("base_date", baseDate)
+      .or("foreign_turn.not.is.null,inst_turn.not.is.null")
+      .order("trade_value", { ascending: false, nullsFirst: false })
+      .limit(30),
+    supabase
+      .from("stock_analysis")
+      .select("ticker,theme_kw,industry_kw")
+      .eq("base_date", baseDate),
+  ]);
+  if (flowRes.error)
+    throw new Error(`investor_flow_signal: ${flowRes.error.message}`);
+  if (analysisRes.error)
+    throw new Error(`stock_analysis: ${analysisRes.error.message}`);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
-    ticker: String(r.ticker),
-    name: (r.name as string) ?? null,
-    market: (r.market as string) ?? null,
-    changeRate: asNum(r.change_rate),
-    tradeValue: asNum(r.trade_value),
-    foreignNetBuy: asNum(r.foreign_net_buy),
-    instNetBuy: asNum(r.inst_net_buy),
-    indivNetBuy: asNum(r.indiv_net_buy),
-    foreignTurn: (r.foreign_turn as FlowSignal["foreignTurn"]) ?? null,
-    instTurn: (r.inst_turn as FlowSignal["instTurn"]) ?? null,
-  }));
+  // 테마·산업 키워드는 stock_analysis 가 단일 출처 — 종목코드로 매칭한다
+  const kwByTicker = new Map<string, { theme: string | null; industry: string | null }>();
+  for (const raw of (analysisRes.data ?? []) as Record<string, unknown>[]) {
+    const ticker = String(raw.ticker ?? "").trim();
+    if (!ticker) continue;
+    kwByTicker.set(ticker, {
+      theme: (raw.theme_kw as string) ?? null,
+      industry: (raw.industry_kw as string) ?? null,
+    });
+  }
+
+  return ((flowRes.data ?? []) as Record<string, unknown>[]).map((r) => {
+    const ticker = String(r.ticker);
+    const kw = kwByTicker.get(ticker);
+    return {
+      ticker,
+      name: (r.name as string) ?? null,
+      market: (r.market as string) ?? null,
+      themeKw: kw?.theme ?? null,
+      industryKw: kw?.industry ?? null,
+      changeRate: asNum(r.change_rate),
+      tradeValue: asNum(r.trade_value),
+      foreignNetBuy: asNum(r.foreign_net_buy),
+      instNetBuy: asNum(r.inst_net_buy),
+      indivNetBuy: asNum(r.indiv_net_buy),
+      foreignTurn: (r.foreign_turn as FlowSignal["foreignTurn"]) ?? null,
+      instTurn: (r.inst_turn as FlowSignal["instTurn"]) ?? null,
+    };
+  });
 }
 
 /** 종목 상세용 — 그 종목의 과거 이슈 기록 */
