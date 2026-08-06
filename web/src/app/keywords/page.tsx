@@ -34,7 +34,11 @@ export default async function Page({
     requested && dates.includes(requested) ? requested : undefined
   );
   const baseDate = resolved ?? dates[0];
-  const rows = all.filter((r) => r.base_date === baseDate);
+
+  // 첫 줄은 선택한 날짜, 그 아래로 직전 2개 날짜까지 최대 3행을 보여준다
+  const startIdx = Math.max(dates.indexOf(baseDate), 0);
+  const shownDates = dates.slice(startIdx, startIdx + 3);
+  const rows = all.filter((r) => shownDates.includes(r.base_date));
 
   return (
     <div className="space-y-4">
@@ -55,7 +59,7 @@ export default async function Page({
         </p>
       )}
 
-      <KeywordBoard rows={rows} baseDate={baseDate} />
+      <KeywordBoard rows={rows} dates={shownDates} />
     </div>
   );
 }

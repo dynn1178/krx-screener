@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { wonShort, wonFull, pct2, trend } from "@/lib/format";
+import { wonShort, wonFull, pct2, trend, dateKo } from "@/lib/format";
 import {
   naverLink,
   sortKeywords,
@@ -23,169 +23,46 @@ type Kind = (typeof KINDS)[number]["key"];
 
 const selectCls = "h-8 rounded-lg border px-2 text-[14px]";
 
-export default function KeywordBoard({
+/** 날짜 하나치 키워드 통계 + 캐러셀 — 3행(선택일 + 직전 2일)에서 재사용한다 */
+function DateRow({
+  date,
   rows,
-  baseDate,
+  stSort,
 }: {
+  date: string;
   rows: KeywordRow[];
-  baseDate: string;
+  stSort: StockSort;
 }) {
-  const [kind, setKind] = useState<Kind>("theme");
-  const [kwSort, setKwSort] = useState<KeywordSort>("value");
-  const [stSort, setStSort] = useState<StockSort>("value");
-  const [topN, setTopN] = useState<TopN>(10);
-  const [upOnly, setUpOnly] = useState(false);
-
-  const ofKind = useMemo(() => rows.filter((r) => r.kind === kind), [rows, kind]);
-
-  const list = useMemo(() => {
-    let out = ofKind;
-    if (upOnly) out = out.filter((r) => (r.avg_change_pct ?? 0) > 0);
-    out = sortKeywords(out, kwSort);
-    return topN === 0 ? out : out.slice(0, topN);
-  }, [ofKind, kwSort, topN, upOnly]);
-
   const stockCount = useMemo(
-    () => new Set(ofKind.flatMap((r) => r.stocks.map((s) => s.code))).size,
-    [ofKind]
+    () => new Set(rows.flatMap((r) => r.stocks.map((s) => s.code))).size,
+    [rows]
   );
-  const upCount = ofKind.filter((r) => (r.avg_change_pct ?? 0) > 0).length;
-
-  if (!rows.length) {
-    return (
-      <div
-        className="rounded-xl border p-6 text-[14px]"
-        style={{
-          borderColor: "var(--warn-line)",
-          background: "var(--warn-bg)",
-          color: "var(--warn-fg)",
-        }}
-      >
-        {baseDate} 의 키워드 데이터가 없습니다. 키워드는 <code>stock_analysis</code>{" "}
-        테이블의 테마·산업·이슈 키워드에서 집계합니다.
-      </div>
-    );
-  }
+  const upCount = rows.filter((r) => (r.avg_change_pct ?? 0) > 0).length;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div
-          className="inline-flex rounded-lg border p-0.5"
-          style={{ borderColor: "var(--line)", background: "var(--card)" }}
-        >
-          {KINDS.map((k) => (
-            <button
-              key={k.key}
-              type="button"
-              onClick={() => setKind(k.key)}
-              className="rounded-md px-3.5 py-1.5 text-[14px] font-bold transition"
-              style={
-                kind === k.key
-                  ? { background: "var(--fg)", color: "var(--bg)" }
-                  : { color: "var(--fg-subtle)" }
-              }
-            >
-              {k.label}
-            </button>
-          ))}
-        </div>
-        <span className="text-[13px] tabular" style={{ color: "var(--fg-muted)" }}>
-          {ofKind.length}개 키워드 · {stockCount}종목 · 상승 {upCount}개
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="text-[14px] font-bold">{dateKo(date)}</h3>
+        <span className="text-[12px] tabular" style={{ color: "var(--fg-subtle)" }}>
+          {rows.length}개 키워드 · {stockCount}종목 · 상승 {upCount}개
         </span>
       </div>
 
-      <div
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2.5"
-        style={{ borderColor: "var(--line)", background: "var(--card-2)" }}
-      >
-        <label
-          className="flex items-center gap-1.5 text-[13px]"
-          style={{ color: "var(--fg-muted)" }}
-        >
-          키워드 정렬
-          <select
-            value={kwSort}
-            onChange={(e) => setKwSort(e.target.value as KeywordSort)}
-            className={selectCls}
-            style={{ borderColor: "var(--line)" }}
-          >
-            {KEYWORD_SORTS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label
-          className="flex items-center gap-1.5 text-[13px]"
-          style={{ color: "var(--fg-muted)" }}
-        >
-          종목 정렬
-          <select
-            value={stSort}
-            onChange={(e) => setStSort(e.target.value as StockSort)}
-            className={selectCls}
-            style={{ borderColor: "var(--line)" }}
-          >
-            {KEYWORD_SORTS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <select
-          value={topN}
-          onChange={(e) => setTopN(Number(e.target.value) as TopN)}
-          className={selectCls}
-          style={{ borderColor: "var(--line)" }}
-          aria-label="키워드 표기 개수"
-        >
-          {TOP_N_OPTIONS.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.key === 0 ? o.label : `${o.label} 키워드`}
-            </option>
-          ))}
-        </select>
-
-        <label
-          className="flex items-center gap-1.5 text-[13px]"
-          style={{ color: "var(--fg-muted)" }}
-        >
-          <input
-            type="checkbox"
-            checked={upOnly}
-            onChange={(e) => setUpOnly(e.target.checked)}
-          />
-          상승 키워드만
-        </label>
-
-        <span
-          className="ml-auto text-[13px] tabular"
-          style={{ color: "var(--fg-subtle)" }}
-        >
-          {list.length} / {ofKind.length}개 키워드
-        </span>
-      </div>
-
-      {list.length === 0 ? (
+      {rows.length === 0 ? (
         <p
-          className="rounded-xl border p-6 text-center text-[14px]"
+          className="rounded-xl border p-4 text-center text-[13px]"
           style={{
             borderColor: "var(--line)",
             background: "var(--card)",
-            color: "var(--fg-muted)",
+            color: "var(--fg-subtle)",
           }}
         >
-          조건에 맞는 키워드가 없습니다.
+          이 날짜는 조건에 맞는 키워드가 없습니다.
         </p>
       ) : (
         <div className="snap-x snap-mandatory overflow-x-auto pb-2">
           <div className="flex gap-3">
-            {list.map((k) => {
+            {rows.map((k) => {
               const stocks = sortStocks(k.stocks, stSort);
               const up = (k.avg_change_pct ?? 0) > 0;
               const head = up
@@ -313,6 +190,157 @@ export default function KeywordBoard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export default function KeywordBoard({
+  rows,
+  dates,
+}: {
+  rows: KeywordRow[];
+  /** 표시할 날짜 — 첫 번째가 선택 날짜, 그 뒤로 직전 날짜들 (최대 3개) */
+  dates: string[];
+}) {
+  const [kind, setKind] = useState<Kind>("theme");
+  const [kwSort, setKwSort] = useState<KeywordSort>("value");
+  const [stSort, setStSort] = useState<StockSort>("value");
+  const [topN, setTopN] = useState<TopN>(10);
+  const [upOnly, setUpOnly] = useState(false);
+
+  const ofKind = useMemo(() => rows.filter((r) => r.kind === kind), [rows, kind]);
+
+  const byDate = useMemo(() => {
+    let out = ofKind;
+    if (upOnly) out = out.filter((r) => (r.avg_change_pct ?? 0) > 0);
+    const m = new Map<string, KeywordRow[]>();
+    for (const d of dates) {
+      const sorted = sortKeywords(
+        out.filter((r) => r.base_date === d),
+        kwSort
+      );
+      m.set(d, topN === 0 ? sorted : sorted.slice(0, topN));
+    }
+    return m;
+  }, [ofKind, dates, kwSort, topN, upOnly]);
+
+  if (!rows.length) {
+    return (
+      <div
+        className="rounded-xl border p-6 text-[14px]"
+        style={{
+          borderColor: "var(--warn-line)",
+          background: "var(--warn-bg)",
+          color: "var(--warn-fg)",
+        }}
+      >
+        {dates[0] ?? "선택일"} 의 키워드 데이터가 없습니다. 키워드는{" "}
+        <code>stock_analysis</code> 테이블의 테마·산업·이슈 키워드에서
+        집계합니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <div
+          className="inline-flex rounded-lg border p-0.5"
+          style={{ borderColor: "var(--line)", background: "var(--card)" }}
+        >
+          {KINDS.map((k) => (
+            <button
+              key={k.key}
+              type="button"
+              onClick={() => setKind(k.key)}
+              className="rounded-md px-3.5 py-1.5 text-[14px] font-bold transition"
+              style={
+                kind === k.key
+                  ? { background: "var(--fg)", color: "var(--bg)" }
+                  : { color: "var(--fg-subtle)" }
+              }
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2.5"
+        style={{ borderColor: "var(--line)", background: "var(--card-2)" }}
+      >
+        <label
+          className="flex items-center gap-1.5 text-[13px]"
+          style={{ color: "var(--fg-muted)" }}
+        >
+          키워드 정렬
+          <select
+            value={kwSort}
+            onChange={(e) => setKwSort(e.target.value as KeywordSort)}
+            className={selectCls}
+            style={{ borderColor: "var(--line)" }}
+          >
+            {KEYWORD_SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label
+          className="flex items-center gap-1.5 text-[13px]"
+          style={{ color: "var(--fg-muted)" }}
+        >
+          종목 정렬
+          <select
+            value={stSort}
+            onChange={(e) => setStSort(e.target.value as StockSort)}
+            className={selectCls}
+            style={{ borderColor: "var(--line)" }}
+          >
+            {KEYWORD_SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <select
+          value={topN}
+          onChange={(e) => setTopN(Number(e.target.value) as TopN)}
+          className={selectCls}
+          style={{ borderColor: "var(--line)" }}
+          aria-label="키워드 표기 개수"
+        >
+          {TOP_N_OPTIONS.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.key === 0 ? o.label : `${o.label} 키워드`}
+            </option>
+          ))}
+        </select>
+
+        <label
+          className="flex items-center gap-1.5 text-[13px]"
+          style={{ color: "var(--fg-muted)" }}
+        >
+          <input
+            type="checkbox"
+            checked={upOnly}
+            onChange={(e) => setUpOnly(e.target.checked)}
+          />
+          상승 키워드만
+        </label>
+
+      </div>
+
+      <div className="space-y-6">
+        {dates.map((d) => (
+          <DateRow key={d} date={d} rows={byDate.get(d) ?? []} stSort={stSort} />
+        ))}
+      </div>
 
       <ul
         className="space-y-0.5 text-[12px] leading-relaxed"

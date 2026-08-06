@@ -70,7 +70,7 @@ export function resolveBaseDate(
 // STEP 1-1 매크로 지표 보드
 // ──────────────────────────────────────────────────────────
 
-const shiftMonths = (iso: string, months: number) => {
+export const shiftMonths = (iso: string, months: number) => {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1 - months, d));
   return dt.toISOString().slice(0, 10);
