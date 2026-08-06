@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { wonShort, pct2, trend } from "@/lib/format";
+import { wonShort, pct2, trend, trendVar, dateKo } from "@/lib/format";
 import {
   sortKeywords,
   KEYWORD_SORTS,
@@ -65,6 +65,7 @@ export default function SurgeCalendar({
   const [kwSort, setKwSort] = useState<KeywordSort>("value");
   const [topN, setTopN] = useState<TopN>(10);
   const [upOnly, setUpOnly] = useState(false);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const byDate = useMemo(() => {
     const m = new Map<string, KeywordRow[]>();
@@ -167,7 +168,96 @@ export default function SurgeCalendar({
               </span>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)]">
+            {/* 모바일 — 세로 일자 리스트, 옆스크롤 없이 탭해서 펼쳐본다 */}
+            <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)] lg:hidden">
+              {cells
+                .filter((iso): iso is string => iso != null)
+                .map((iso) => {
+                  const list = byDate.get(iso) ?? [];
+                  const idx = indexMap[iso];
+                  const expanded = expandedDate === iso;
+                  return (
+                    <div
+                      key={iso}
+                      className="border-b last:border-0"
+                      style={{ borderColor: "var(--line)" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDate((d) => (d === iso ? null : iso))}
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
+                      >
+                        <span
+                          className="h-8 w-1 shrink-0 rounded-full"
+                          style={{
+                            background:
+                              idx?.kospiChangePct != null
+                                ? trendVar(idx.kospiChangePct)
+                                : "var(--line)",
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <span
+                              className={`text-[13px] font-semibold tabular ${
+                                list.length ? "text-[var(--fg)]" : "text-[var(--fg-subtle)]"
+                              }`}
+                            >
+                              {dateKo(iso)}
+                            </span>
+                            {idx?.kospiChangePct != null && (
+                              <span
+                                className={`text-[11px] font-bold tabular ${trend(idx.kospiChangePct)}`}
+                              >
+                                KOSPI {pct2(idx.kospiChangePct)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 text-[12px]" style={{ color: "var(--fg-subtle)" }}>
+                            {list.length > 0 ? `${list.length}개 키워드` : "키워드 없음"}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px]" style={{ color: "var(--fg-subtle)" }}>
+                          {expanded ? "▲" : "▼"}
+                        </span>
+                      </button>
+
+                      {expanded && list.length > 0 && (
+                        <div className="space-y-1 px-3 pb-3 pl-7">
+                          {list.map((k) => (
+                            <div
+                              key={k.keyword}
+                              className="flex items-baseline justify-between gap-2 text-[12px] tabular"
+                            >
+                              <span className="truncate" style={{ color: "var(--fg-muted)" }} title={k.keyword}>
+                                {k.keyword}
+                              </span>
+                              <span className="flex shrink-0 gap-1.5">
+                                <span className={`font-semibold ${trend(k.avg_change_pct)}`}>
+                                  {pct2(k.avg_change_pct)}
+                                </span>
+                                <span style={{ color: "var(--fg-subtle)" }}>
+                                  {wonShort(k.total_trade_value)}
+                                </span>
+                              </span>
+                            </div>
+                          ))}
+                          <Link
+                            href={`/?date=${iso}`}
+                            className="mt-1 inline-block text-[12px]"
+                            style={{ color: "var(--accent-fg)" }}
+                          >
+                            상세 →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* 데스크톱 — 기존 5칸 그리드 */}
+            <div className="hidden overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)] lg:block">
               <div className="grid grid-cols-5 border-b border-[var(--line)] bg-[var(--card-2)]">
                 {WEEK.map((w) => (
                   <div

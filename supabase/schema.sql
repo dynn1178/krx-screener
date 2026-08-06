@@ -472,6 +472,56 @@ select
 from unpivot
 group by base_date, kind, keyword;
 
+-- keyword_streak — keyword_board + 당일 거래대금 순위 + 평균 상승률 부호 연속일수.
+-- streak_days/streak_direction 은 "며칠째 거래대금 상위인지"가 아니라
+-- "평균 상승률 부호(+/-)가 며칠째 안 바뀌었는지"를 센다. 부호가 바뀌거나
+-- 하루라도 빠지면(day gap) 스트릭이 끊긴다.
+create or replace view keyword_streak
+with (security_invoker = on) as
+with days as (
+  select distinct base_date, kind
+  from keyword_board
+),
+seq as (
+  select base_date, kind,
+         dense_rank() over (partition by kind order by base_date) as dn
+  from days
+),
+ranked as (
+  select
+    b.base_date, b.kind, b.keyword, b.mentions, b.avg_change_pct,
+    b.total_trade_value, b.up_n, b.stocks, s.dn,
+    row_number() over (
+      partition by b.base_date, b.kind
+      order by b.total_trade_value desc nulls last
+    ) as day_rank,
+    case when b.avg_change_pct > 0 then 1
+         when b.avg_change_pct < 0 then -1
+         else 0 end as sign
+  from keyword_board b
+  join seq s on s.base_date = b.base_date and s.kind = b.kind
+),
+flagged as (
+  select ranked.*,
+    lag(dn)   over (partition by kind, keyword order by dn) as prev_dn,
+    lag(sign) over (partition by kind, keyword order by dn) as prev_sign
+  from ranked
+),
+grouped as (
+  select flagged.*,
+    sum(
+      case when prev_dn is null or dn <> prev_dn + 1 or sign is distinct from prev_sign
+           then 1 else 0 end
+    ) over (partition by kind, keyword order by dn) as grp
+  from flagged
+)
+select
+  base_date, kind, keyword, mentions, avg_change_pct, total_trade_value, up_n, stocks,
+  day_rank,
+  count(*) over (partition by kind, keyword, grp order by dn)::int as streak_days,
+  case when sign = 1 then 'up' when sign = -1 then 'down' else 'flat' end as streak_direction
+from grouped;
+
 -- 날짜 선택기용 — 어떤 날짜에 어떤 콘텐츠가 있는지
 create or replace view report_dates
 with (security_invoker = on) as

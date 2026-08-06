@@ -444,7 +444,7 @@ export async function getReportRows(baseDate: string): Promise<ReportRow[]> {
 // ──────────────────────────────────────────────────────────
 
 export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
-  // keyword_streak = keyword_board + 연속 등장일 + 당일 순위
+  // keyword_streak = keyword_board + 평균 상승률 부호 연속일수(+당일 순위)
   let q = supabase.from("keyword_streak").select("*");
   if (baseDate) q = q.eq("base_date", baseDate);
   const { data, error } = await q
@@ -462,6 +462,7 @@ export async function getKeywords(baseDate?: string): Promise<KeywordRow[]> {
     up_n: Number(r.up_n ?? 0),
     dayRank: Number(r.day_rank ?? 0),
     streakDays: Number(r.streak_days ?? 1),
+    streakDirection: (r.streak_direction as KeywordRow["streakDirection"]) ?? "flat",
     stocks: (Array.isArray(r.stocks) ? r.stocks : []).map(
       (s: Record<string, unknown>) => ({
         name: String(s.name ?? ""),

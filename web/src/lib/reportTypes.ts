@@ -154,8 +154,10 @@ export type KeywordRow = {
   stocks: KeywordStock[];
   /** 그날 거래대금 기준 순위 */
   dayRank: number;
-  /** 며칠째 연속으로 등장했는지 */
+  /** 평균 상승률 부호가 며칠째 이어지는지 (같은 방향으로 연속) */
   streakDays: number;
+  /** 그 연속이 상승세인지 하락세인지 */
+  streakDirection: "up" | "down" | "flat";
 };
 
 /** 전일 대비 수급 방향이 뒤집힌 종목 */

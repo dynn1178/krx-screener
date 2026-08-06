@@ -56,7 +56,7 @@ export default function NewsList({ rows }: { rows: NewsRow[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="제목·요약·종목명 검색"
-          className="h-8 w-60 rounded border border-[var(--line)] bg-[var(--card)] px-2.5 text-[13px] outline-none focus:border-[var(--accent)]"
+          className="h-8 w-full rounded border border-[var(--line)] bg-[var(--card)] px-2.5 text-[13px] outline-none focus:border-[var(--accent)] sm:w-60"
         />
         <div className="inline-flex rounded border border-[var(--line)] bg-[var(--card)] p-0.5">
           {(

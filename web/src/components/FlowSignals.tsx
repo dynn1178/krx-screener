@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { wonShort, wonFull, pct2, trend } from "@/lib/format";
 import { naverLink, type FlowSignal } from "@/lib/reportTypes";
+import StatRow from "@/components/StatRow";
 
 const TURN_LABEL: Record<"buy" | "sell", string> = {
   buy: "순매수 전환",
@@ -36,6 +37,103 @@ function Turn({ v, who }: { v: "buy" | "sell" | null; who: string }) {
 
 const signedWon = (v: number) =>
   `${v > 0 ? "+" : ""}${wonShort(v)}`;
+
+type FlowGroup = {
+  key: string;
+  rows: FlowSignal[];
+  n: number;
+  tradeValue: number;
+  foreignNetBuy: number;
+  instNetBuy: number;
+  foreignBuyN: number;
+  foreignSellN: number;
+};
+
+/** 모바일 전용 — 그룹 헤더 행을 카드로 */
+function FlowGroupCard({ g }: { g: FlowGroup }) {
+  return (
+    <div
+      className="rounded-lg px-3 py-2"
+      style={{ background: "var(--accent-bg)" }}
+    >
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[14px] font-bold" style={{ color: "var(--accent-fg)" }}>
+          {g.key}
+        </span>
+        <span className="text-[12px] tabular" style={{ color: "var(--fg-subtle)" }}>
+          {g.n}종목 · 합계 거래대금 {wonShort(g.tradeValue)}
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+        <span className={`text-[12px] font-semibold tabular ${trend(g.foreignNetBuy)}`}>
+          외국인 합계 {signedWon(g.foreignNetBuy)}
+        </span>
+        <span className={`text-[12px] font-semibold tabular ${trend(g.instNetBuy)}`}>
+          기관 합계 {signedWon(g.instNetBuy)}
+        </span>
+        <span className="text-[12px] tabular" style={{ color: "var(--fg-subtle)" }}>
+          외국인 전환 매수 {g.foreignBuyN} · 매도 {g.foreignSellN}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** 모바일 전용 카드 — 표 한 행을 옆스크롤 없이 세로로 */
+function FlowCard({ r }: { r: FlowSignal }) {
+  return (
+    <div
+      className="rounded-xl border p-3"
+      style={{ borderColor: "var(--line)", background: "var(--card)" }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <a
+            href={naverLink(r.ticker)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[15px] font-bold hover:underline"
+          >
+            {r.name ?? r.ticker}
+          </a>
+          <div className="mt-0.5 text-[12px] tabular" style={{ color: "var(--fg-subtle)" }}>
+            {r.ticker}
+          </div>
+        </div>
+        <span className={`text-[15px] font-bold tabular ${trend(r.changeRate)}`}>
+          {pct2(r.changeRate)}
+        </span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        <Turn v={r.foreignTurn} who="외국인" />
+        <Turn v={r.instTurn} who="기관" />
+      </div>
+
+      <div
+        className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 border-t pt-2"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <StatRow
+          label="거래대금"
+          value={wonShort(r.tradeValue)}
+          title={wonFull(r.tradeValue)}
+        />
+        <span />
+        <StatRow
+          label="외국인"
+          value={r.foreignNetBuy == null ? "—" : wonShort(r.foreignNetBuy)}
+          valueClassName={trend(r.foreignNetBuy)}
+        />
+        <StatRow
+          label="기관"
+          value={r.instNetBuy == null ? "—" : wonShort(r.instNetBuy)}
+          valueClassName={trend(r.instNetBuy)}
+        />
+      </div>
+    </div>
+  );
+}
 
 function FlowRow({ r }: { r: FlowSignal }) {
   return (
@@ -160,8 +258,19 @@ export default function FlowSignals({
         )}
       </div>
 
+      {/* 모바일 — 카드 리스트 */}
+      <div className="space-y-2 lg:hidden">
+        {groups == null
+          ? rows.map((r) => <FlowCard key={r.ticker} r={r} />)
+          : groups.flatMap((g) => [
+              <FlowGroupCard key={`g-${g.key}`} g={g} />,
+              ...g.rows.map((r) => <FlowCard key={r.ticker} r={r} />),
+            ])}
+      </div>
+
+      {/* 데스크톱 — 기존 표 */}
       <div
-        className="overflow-x-auto rounded-xl border"
+        className="hidden overflow-x-auto rounded-xl border lg:block"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
         <table className="w-full min-w-[860px] border-collapse text-[14px]">

@@ -138,7 +138,7 @@ export function SectorPanel({ rows }: { rows: SectorPerf[] }) {
               const up = r.avg_change_pct >= 0;
               return (
                 <div key={r.sector} className="flex items-center gap-3">
-                  <span className="w-28 shrink-0 truncate text-right text-[14px] font-semibold">
+                  <span className="w-20 shrink-0 truncate text-right text-[14px] font-semibold lg:w-28">
                     {r.sector}
                   </span>
 
@@ -160,7 +160,7 @@ export function SectorPanel({ rows }: { rows: SectorPerf[] }) {
                   </div>
 
                   <span
-                    className={`w-20 shrink-0 text-right text-[15px] font-bold tabular ${trend(r.avg_change_pct)}`}
+                    className={`w-16 shrink-0 text-right text-[15px] font-bold tabular lg:w-20 ${trend(r.avg_change_pct)}`}
                   >
                     {pct2(r.avg_change_pct)}
                   </span>

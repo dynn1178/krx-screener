@@ -183,7 +183,7 @@ export default function KeywordBoard({
           조건에 맞는 키워드가 없습니다.
         </p>
       ) : (
-        <div className="overflow-x-auto pb-2">
+        <div className="snap-x snap-mandatory overflow-x-auto pb-2">
           <div className="flex gap-3">
             {list.map((k) => {
               const stocks = sortStocks(k.stocks, stSort);
@@ -196,7 +196,7 @@ export default function KeywordBoard({
               return (
                 <div
                   key={k.keyword}
-                  className="flex w-[286px] shrink-0 flex-col overflow-hidden rounded-xl border"
+                  className="flex w-[85vw] max-w-[286px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border lg:w-[286px]"
                   style={{
                     borderColor: "var(--line)",
                     background: "var(--card)",
@@ -206,14 +206,21 @@ export default function KeywordBoard({
                     <div className="truncate text-[15px] font-bold" title={k.keyword}>
                       {k.keyword}
                     </div>
-                    {/* 며칠째 이어지는 흐름인지 — 일회성 급등과 구분하는 신호 */}
-                    {k.streakDays >= 2 && (
+                    {/* 평균 상승률 부호가 며칠째 이어지는지 — 일회성 급등/급락과 구분하는 신호 */}
+                    {k.streakDays >= 2 && k.streakDirection !== "flat" && (
                       <div
                         className="mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-bold"
-                        style={{ background: "var(--card)", color: "var(--accent-fg)" }}
-                        title={`${k.streakDays}거래일 연속 등장 · 이날 거래대금 ${k.dayRank}위`}
+                        style={{
+                          background: "var(--card)",
+                          color:
+                            k.streakDirection === "up" ? "var(--up)" : "var(--down)",
+                        }}
+                        title={`평균 상승률이 ${k.streakDays}거래일째 ${
+                          k.streakDirection === "up" ? "플러스" : "마이너스"
+                        } · 이날 거래대금 ${k.dayRank}위`}
                       >
-                        🔥 {k.streakDays}일 연속
+                        {k.streakDirection === "up" ? "🔥" : "🥶"} {k.streakDays}일 연속{" "}
+                        {k.streakDirection === "up" ? "상승" : "하락"}
                       </div>
                     )}
                   </div>

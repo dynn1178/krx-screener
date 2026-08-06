@@ -1,14 +1,16 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { eok, int, num, pct, trend, divFmt } from "@/lib/format";
 import { screen, toCsv } from "@/lib/screen";
 import {
   DEFAULT_FILTERS,
   type Filters,
   type NewsItem,
+  type ScoredSnapshot,
   type Snapshot,
 } from "@/lib/types";
+import StatRow from "@/components/StatRow";
 
 type Props = { rows: Snapshot[]; sectors: string[]; baseDate: string };
 
@@ -26,10 +28,31 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
   const [showFunnel, setShowFunnel] = useState(false);
   const [newsTicker, setNewsTicker] = useState<string | null>(null);
   const [newsCache, setNewsCache] = useState<Record<string, NewsState>>({});
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const { rows: result, funnel } = useMemo(() => screen(rows, f), [rows, f]);
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) =>
     setF((p) => ({ ...p, [k]: v }));
+
+  // 기본값과 달라진 조건 개수 — 모바일 필터 버튼 뱃지용
+  const activeFilterCount = useMemo(
+    () =>
+      (Object.keys(f) as (keyof Filters)[]).filter((k) => {
+        const a = f[k];
+        const b = DEFAULT_FILTERS[k];
+        if (Array.isArray(a) && Array.isArray(b)) return a.length !== b.length;
+        return a !== b;
+      }).length,
+    [f]
+  );
+
+  // 모바일 필터 시트 — ESC 로 닫기
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileFiltersOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileFiltersOpen]);
 
   const download = () => {
     const blob = new Blob([toCsv(result)], { type: "text/csv;charset=utf-8" });
@@ -62,21 +85,10 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
       );
   };
 
-  return (
-    <div className="flex gap-6">
-      {/* ══════════ 사이드바 ══════════ */}
-      <aside className="sticky top-[57px] h-fit w-[280px] shrink-0 space-y-5 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold">스크리닝 조건</h2>
-          <button
-            onClick={() => setF(DEFAULT_FILTERS)}
-            className="text-xs text-[var(--fg-subtle)] hover:text-[var(--accent-fg)]"
-          >
-            초기화
-          </button>
-        </div>
-
-        <Group label="시장">
+  // 사이드바 본문 — 데스크톱 aside 와 모바일 전체화면 시트 양쪽에서 공유한다
+  const filterPanel = (
+    <>
+      <Group label="시장">
           <div className="flex gap-1">
             {["ALL", "KOSPI", "KOSDAQ"].map((m) => (
               <button
@@ -216,6 +228,65 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
             </button>
           )}
         </Group>
+    </>
+  );
+
+  return (
+    <div className="flex gap-6">
+      {/* 모바일 — 버튼으로 여는 전체화면 필터 시트 */}
+      {mobileFiltersOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col lg:hidden"
+          style={{ background: "var(--bg)" }}
+        >
+          <div
+            className="flex items-center justify-between border-b px-4 py-3"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <h2 className="text-sm font-semibold">스크리닝 조건</h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setF(DEFAULT_FILTERS)}
+                className="text-xs text-[var(--fg-subtle)] hover:text-[var(--accent-fg)]"
+              >
+                초기화
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                aria-label="필터 닫기"
+                className="grid h-8 w-8 place-items-center rounded border text-[16px]"
+                style={{ borderColor: "var(--line)", color: "var(--fg-muted)" }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">{filterPanel}</div>
+          <div className="border-t p-3" style={{ borderColor: "var(--line)" }}>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="w-full rounded-md bg-[var(--accent)] py-2.5 text-sm font-semibold text-white"
+            >
+              {result.length.toLocaleString()}개 결과 보기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ 사이드바 (lg 이상) ══════════ */}
+      <aside className="hidden h-fit w-[280px] shrink-0 space-y-5 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 lg:sticky lg:top-[57px] lg:block">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">스크리닝 조건</h2>
+          <button
+            onClick={() => setF(DEFAULT_FILTERS)}
+            className="text-xs text-[var(--fg-subtle)] hover:text-[var(--accent-fg)]"
+          >
+            초기화
+          </button>
+        </div>
+        {filterPanel}
       </aside>
 
       {/* ══════════ 결과 ══════════ */}
@@ -231,6 +302,13 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
             <p className="mt-0.5 text-xs text-[var(--fg-subtle)]">기준일 {baseDate}</p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              className="rounded-md border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs hover:border-[var(--line-strong)] lg:hidden"
+            >
+              필터{activeFilterCount > 0 && ` · ${activeFilterCount}`}
+            </button>
             <button
               onClick={() => setShowFunnel((v) => !v)}
               className="rounded-md border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs hover:border-[var(--line-strong)]"
@@ -258,7 +336,7 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 const drop = prev - s.count;
                 return (
                   <div key={s.label} className="flex items-center gap-3 text-xs">
-                    <span className="w-36 shrink-0 text-[var(--fg-muted)]">
+                    <span className="w-20 shrink-0 text-[var(--fg-muted)] lg:w-36">
                       {s.label}
                     </span>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--card-2)]">
@@ -293,7 +371,28 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
         )}
 
         {result.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)]">
+          <>
+            {/* 모바일 — 카드 리스트, 옆스크롤 없이 페이지 스크롤에 맡긴다 */}
+            <div className="space-y-3 lg:hidden">
+              {result.slice(0, 300).map((r) => (
+                <ScreenerCard
+                  key={r.ticker}
+                  r={r}
+                  isNewsOpen={newsTicker === r.ticker}
+                  onToggleNews={() => toggleNews(r.ticker, r.name)}
+                  newsEntry={newsCache[r.ticker]}
+                />
+              ))}
+              {result.length > 300 && (
+                <p className="text-center text-[12px] text-[var(--fg-subtle)]">
+                  상위 300종목만 표시 · 전체 {result.length.toLocaleString()}
+                  종목은 CSV로 받으세요
+                </p>
+              )}
+            </div>
+
+            {/* 데스크톱 — 기존 표 */}
+            <div className="hidden overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] lg:block">
             <div className="max-h-[calc(100vh-220px)] overflow-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-[var(--card-2)] text-[12px] text-[var(--fg-subtle)]">
@@ -387,7 +486,8 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
                 CSV로 받으세요
               </p>
             )}
-          </div>
+            </div>
+          </>
         )}
       </section>
     </div>
@@ -395,6 +495,78 @@ export default function Screener({ rows, sectors, baseDate }: Props) {
 }
 
 /* ────────────────────────────── 작은 조각들 */
+
+/** 모바일 전용 카드 — 표 한 행을 옆스크롤 없이 세로로 */
+function ScreenerCard({
+  r,
+  isNewsOpen,
+  onToggleNews,
+  newsEntry,
+}: {
+  r: ScoredSnapshot;
+  isNewsOpen: boolean;
+  onToggleNews: () => void;
+  newsEntry?: NewsState;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <a
+            href={naverFinanceUrl(r.ticker)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[15px] font-bold hover:text-[var(--accent-fg)] hover:underline"
+          >
+            {r.name}
+          </a>
+          <div className="mt-0.5 text-[12px] tabular text-[var(--fg-subtle)]">
+            {r.ticker}
+            {r.sector ? ` · ${r.sector}` : ""}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="h-1.5 w-10 overflow-hidden rounded-full bg-[var(--card-2)]">
+            <div className="h-full bg-[var(--accent)]" style={{ width: `${r.score}%` }} />
+          </div>
+          <span className="tabular w-6 text-right text-[13px] font-semibold">{r.score}</span>
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 border-t border-[var(--line)] pt-2">
+        <StatRow label="현재가" value={int(r.close)} />
+        <StatRow label="시총(억)" value={eok(r.market_cap)} />
+        <StatRow label="1Y" value={pct(r.ret_1y, true)} valueClassName={trend(r.ret_1y)} />
+        <StatRow label="6M" value={pct(r.ret_6m, true)} valueClassName={trend(r.ret_6m)} />
+        <StatRow label="1M" value={pct(r.ret_1m, true)} valueClassName={trend(r.ret_1m)} />
+        <StatRow label="RS" value={pct(r.rs_1y, true)} valueClassName={trend(r.rs_1y)} />
+        <StatRow label="PER" value={num(r.per, 1)} />
+        <StatRow label="PBR" value={num(r.pbr)} />
+        <StatRow label="EPS" value={int(r.eps)} />
+        <StatRow label="BPS" value={int(r.bps)} />
+        <StatRow label="배당" value={divFmt(r.div)} />
+      </div>
+
+      <button
+        type="button"
+        onClick={onToggleNews}
+        className={`mt-2 w-full rounded border px-2 py-1.5 text-[12px] transition ${
+          isNewsOpen
+            ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+            : "border-[var(--line)] text-[var(--fg-subtle)] hover:border-[var(--line-strong)]"
+        }`}
+      >
+        기사 {isNewsOpen ? "닫기" : "보기"}
+      </button>
+      {isNewsOpen && (
+        <div className="mt-2 border-t border-[var(--line)] pt-2">
+          <NewsRefs entry={newsEntry} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Group({
   label,
   children,

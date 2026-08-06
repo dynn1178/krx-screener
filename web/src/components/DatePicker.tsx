@@ -123,7 +123,7 @@ export default function DatePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-50 w-[268px] rounded-lg border border-[var(--line)] bg-[var(--card)] p-3 shadow-lg">
+        <div className="absolute right-0 top-9 z-50 w-[268px] max-w-[calc(100vw-2rem)] rounded-lg border border-[var(--line)] bg-[var(--card)] p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <button
               type="button"

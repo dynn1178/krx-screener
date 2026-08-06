@@ -13,6 +13,7 @@ import {
   epsFmt,
 } from "@/lib/format";
 import { naverLink, type ReportRow } from "@/lib/reportTypes";
+import StatRow from "@/components/StatRow";
 
 const CATEGORIES = ["전체", "급등주", "급락주", "6%이상변동", "거래대금상위"] as const;
 
@@ -43,33 +44,6 @@ const signedInt = (v: number | null) =>
   v == null
     ? "—"
     : `${v > 0 ? "+" : v < 0 ? "-" : ""}${Math.abs(Math.round(v)).toLocaleString("ko-KR")}`;
-
-/** 칸 하나에 라벨:값을 여러 줄로 쌓아 컬럼 수를 줄인다 */
-function StatRow({
-  label,
-  value,
-  valueClassName = "",
-  title,
-}: {
-  label: string;
-  value: React.ReactNode;
-  valueClassName?: string;
-  title?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2" title={title}>
-      <span
-        className="shrink-0 whitespace-nowrap text-[11px]"
-        style={{ color: "var(--fg-subtle)" }}
-      >
-        {label}
-      </span>
-      <span className={`tabular whitespace-nowrap text-[13px] ${valueClassName}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function NetBuy({ v }: { v: number | null }) {
   if (v == null) return <span style={{ color: "var(--fg-subtle)" }}>—</span>;
@@ -105,7 +79,13 @@ function Chip({
 }
 
 /** 관련 종목 — 쉼표로 나열된 원문을 개별 뱃지로 부각해서 보여준다 */
-function RelatedChips({ text }: { text: string }) {
+function RelatedChips({
+  text,
+  align = "end",
+}: {
+  text: string;
+  align?: "start" | "end";
+}) {
   const names = text
     .split(/[,、·]/)
     .map((s) => s.trim())
@@ -113,7 +93,7 @@ function RelatedChips({ text }: { text: string }) {
   if (!names.length) return null;
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={`flex flex-col gap-1 ${align === "end" ? "items-end" : "items-start"}`}>
       {names.map((n, i) => (
         <span
           key={i}
@@ -127,6 +107,146 @@ function RelatedChips({ text }: { text: string }) {
           {n}
         </span>
       ))}
+    </div>
+  );
+}
+
+/** 모바일 전용 카드 — 데스크톱 표의 한 행을 세로로 쌓아 옆스크롤 없이 보여준다 */
+function MoverCard({ r }: { r: ReportRow }) {
+  const cats = (r.category ?? "").split(" / ").filter(Boolean);
+  const hasKeywords = r.industryKw || r.themeKw || r.issueKw;
+  const hasIssue = r.issueNote || r.related || r.refs.length > 0;
+
+  return (
+    <div
+      className="rounded-xl border p-3"
+      style={{ borderColor: "var(--line)", background: "var(--card)" }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <a
+            href={naverLink(r.ticker)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[16px] font-bold hover:underline"
+          >
+            {r.name}
+          </a>
+          <div className="mt-0.5 text-[12px] tabular" style={{ color: "var(--fg-subtle)" }}>
+            {r.ticker}
+            {r.market ? ` · ${r.market}` : ""}
+          </div>
+        </div>
+        {cats.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-1">
+            {cats.map((c) => (
+              <span
+                key={c}
+                className="whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-semibold"
+                style={catStyle(c)}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 border-t pt-2"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <StatRow label="전일 종가" value={int(r.prevClose)} />
+        <StatRow label="시가" value={int(r.open)} />
+        <StatRow label="종가" value={int(r.close)} valueClassName="font-bold" />
+        <StatRow label="장중 저가" value={int(r.low)} valueClassName="t-down" />
+        <StatRow label="장중 고가" value={int(r.high)} valueClassName="t-up" />
+      </div>
+
+      <div
+        className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 border-t pt-2"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <StatRow
+          label="등락률"
+          value={pct2(r.changeRate)}
+          valueClassName={`font-bold ${trend(r.changeRate)}`}
+        />
+        <StatRow
+          label="증감가"
+          value={signedInt(r.changePrice)}
+          valueClassName={trend(r.changePrice)}
+        />
+        <StatRow label="외국인" value={<NetBuy v={r.foreignNetBuy} />} />
+        <StatRow label="기관" value={<NetBuy v={r.instNetBuy} />} />
+        <StatRow label="개인" value={<NetBuy v={r.indivNetBuy} />} />
+      </div>
+
+      <div
+        className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 border-t pt-2"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <StatRow
+          label="거래대금"
+          value={wonShort(r.tradeValue)}
+          title={wonFull(r.tradeValue)}
+        />
+        <StatRow
+          label="시가총액"
+          value={marketCapShort(r.marketCap)}
+          title={wonFull(r.marketCap)}
+        />
+        <StatRow label="PER" value={perFmt(r.per, r.eps)} />
+        <StatRow label="PBR" value={num(r.pbr)} />
+        <StatRow label="EPS" value={epsFmt(r.eps, r.per)} />
+        {r.swingPct != null && (
+          <span className="text-[11px]" style={{ color: "var(--fg-subtle)" }}>
+            변동폭 {r.swingPct.toFixed(2)}%
+          </span>
+        )}
+      </div>
+
+      {hasKeywords && (
+        <div
+          className="mt-2 flex flex-wrap gap-1 border-t pt-2"
+          style={{ borderColor: "var(--line)" }}
+        >
+          {r.industryKw && <Chip text={r.industryKw} tone="industry" />}
+          {r.themeKw && <Chip text={r.themeKw} tone="theme" />}
+          {r.issueKw && <Chip text={r.issueKw} tone="issue" />}
+        </div>
+      )}
+
+      {hasIssue && (
+        <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--line)" }}>
+          {r.issueNote && (
+            <p className="text-[13px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
+              {r.issueNote}
+            </p>
+          )}
+          {r.related && (
+            <div className="mt-1.5">
+              <RelatedChips text={r.related} align="start" />
+            </div>
+          )}
+          {r.refs.length > 0 && (
+            <div className="mt-1.5 space-y-0.5">
+              {r.refs.map((a, i) => (
+                <a
+                  key={i}
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block truncate text-[12px] hover:underline"
+                  style={{ color: "var(--fg-subtle)" }}
+                >
+                  📰 {a.title ?? `기사 ${i + 1}`}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -259,8 +379,16 @@ export default function MoversTable({
         </span>
       </div>
 
+      {/* 모바일 — 카드 리스트, 옆스크롤 없이 페이지 스크롤에 맡긴다 */}
+      <div className="space-y-3 lg:hidden">
+        {shown.map((r) => (
+          <MoverCard key={r.ticker} r={r} />
+        ))}
+      </div>
+
+      {/* 데스크톱 — 기존 표 */}
       <div
-        className="max-h-[75vh] overflow-auto rounded-xl border"
+        className="hidden max-h-[75vh] overflow-auto rounded-xl border lg:block"
         style={{ borderColor: "var(--line)", background: "var(--card)" }}
       >
         <table className="w-full table-fixed border-collapse text-[14px]">

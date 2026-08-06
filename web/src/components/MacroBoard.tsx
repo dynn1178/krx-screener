@@ -226,7 +226,7 @@ export default function MacroBoard({
                   </div>
                   <div className="flex flex-wrap gap-2.5">
                     {items.map((c) => (
-                      <div key={c.seriesId} className="w-[168px]">
+                      <div key={c.seriesId} className="w-[calc(50%-5px)] lg:w-[168px]">
                         <Card c={c} />
                       </div>
                     ))}
