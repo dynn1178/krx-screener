@@ -1,5 +1,6 @@
 import DatePicker from "@/components/DatePicker";
 import MacroBoard from "@/components/MacroBoard";
+import MacroInsights from "@/components/MacroInsights";
 import MarketHeader from "@/components/MarketHeader";
 import MoversTable from "@/components/MoversTable";
 import FlowSignals from "@/components/FlowSignals";
@@ -8,6 +9,7 @@ import {
   SectorPanel,
   BriefPanel,
 } from "@/components/Commentary";
+import { buildInsights } from "@/lib/insights";
 import {
   getReportDates,
   resolveBaseDate,
@@ -127,6 +129,8 @@ export default async function Page({
         dataDate={macro.dataDate}
         baseDate={baseDate}
       />
+
+      <MacroInsights insights={buildInsights(macro.cards)} variant="compact" />
 
       <BriefPanel brief={brief} />
       <SectorPanel rows={sectors} />

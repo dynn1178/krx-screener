@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/calendar", label: "급등 캘린더" },
   { href: "/news", label: "뉴스" },
   { href: "/screener", label: "조건 스크리너" },
+  { href: "/guide", label: "경기지표 가이드" },
   { href: "/links", label: "증시 사이트" },
 ];
 
