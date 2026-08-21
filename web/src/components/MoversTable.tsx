@@ -13,6 +13,7 @@ import {
   epsFmt,
 } from "@/lib/format";
 import { naverLink, type ReportRow } from "@/lib/reportTypes";
+import { highlightText } from "@/lib/highlight";
 import StatRow from "@/components/StatRow";
 
 const CATEGORIES = ["전체", "급등주", "급락주", "6%이상변동", "거래대금상위"] as const;
@@ -221,7 +222,7 @@ function MoverCard({ r }: { r: ReportRow }) {
         <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--line)" }}>
           {r.issueNote && (
             <p className="text-[13px] leading-relaxed" style={{ color: "var(--fg-muted)" }}>
-              {r.issueNote}
+              {highlightText(r.issueNote)}
             </p>
           )}
           {r.related && (
@@ -571,7 +572,9 @@ export default function MoversTable({
                         className="min-w-0 flex-1 text-[13px] leading-relaxed"
                         style={{ color: "var(--fg-muted)" }}
                       >
-                        {r.issueNote ?? (
+                        {r.issueNote ? (
+                          highlightText(r.issueNote)
+                        ) : (
                           <span style={{ color: "var(--fg-subtle)" }}>—</span>
                         )}
                       </p>

@@ -1,4 +1,5 @@
 import { pct2, trend, trendVar } from "@/lib/format";
+import { highlightText } from "@/lib/highlight";
 import type { Commentary as C, SectorPerf, DailyBrief } from "@/lib/reportTypes";
 
 function Section({
@@ -24,7 +25,7 @@ function Section({
         className="mt-2 whitespace-pre-line text-[14px] leading-[1.8]"
         style={{ color: "var(--fg-muted)" }}
       >
-        {body}
+        {highlightText(body)}
       </p>
     </div>
   );
@@ -68,7 +69,7 @@ export function CommentarySections({ c }: { c: C | null }) {
                   className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ background: "var(--accent)" }}
                 />
-                <span>{s}</span>
+                <span>{highlightText(s)}</span>
               </li>
             ))}
           </ul>
@@ -215,7 +216,7 @@ export function BriefPanel({ brief }: { brief: DailyBrief | null }) {
             className="mt-2 whitespace-pre-line text-[14px] leading-[1.8]"
             style={{ color: "var(--fg-muted)" }}
           >
-            {brief.summary}
+            {highlightText(brief.summary)}
           </p>
         )}
 
@@ -233,7 +234,7 @@ export function BriefPanel({ brief }: { brief: DailyBrief | null }) {
                     className="mt-0.5 text-[13px] leading-relaxed"
                     style={{ color: "var(--fg-muted)" }}
                   >
-                    {h.detail}
+                    {highlightText(h.detail)}
                   </div>
                 )}
               </div>
@@ -259,7 +260,7 @@ export function BriefPanel({ brief }: { brief: DailyBrief | null }) {
                   className="text-[14px]"
                   style={{ color: "var(--fg-muted)" }}
                 >
-                  · {w}
+                  · {highlightText(w)}
                 </li>
               ))}
             </ul>

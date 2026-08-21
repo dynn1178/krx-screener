@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { dateKo } from "@/lib/format";
+import { highlightText } from "@/lib/highlight";
 import type { AnalysisHistory } from "@/lib/reportTypes";
 
 /**
@@ -76,7 +77,7 @@ export default function IssueHistory({
                 className="mt-2 text-[14px] leading-relaxed"
                 style={{ color: "var(--fg-muted)" }}
               >
-                {r.issue_note}
+                {highlightText(r.issue_note)}
               </p>
             )}
 
