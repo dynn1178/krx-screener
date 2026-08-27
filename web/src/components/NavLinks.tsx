@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/news", label: "뉴스" },
   { href: "/screener", label: "조건 스크리너" },
   { href: "/guide", label: "경기지표 가이드" },
+  { href: "/trends", label: "키워드 추이" },
   { href: "/links", label: "증시 사이트" },
 ];
 
