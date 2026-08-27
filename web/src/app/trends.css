@@ -88,8 +88,12 @@
 }
 .trend-tablebtn:hover { color: var(--text-primary); }
 
+/* ── 범례 도구줄 (전체 선택/해제) ── */
+.legend-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.legend-count { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 /* ── 범례 ── */
-.trend-legend { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 12px 0 4px; padding: 0; list-style: none; }
+.trend-legend { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 8px 0 4px; padding: 0; list-style: none; }
 .trend-legend button {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   border: 1px solid transparent; background: var(--surface-2); border-radius: 999px;

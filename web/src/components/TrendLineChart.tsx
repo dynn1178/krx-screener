@@ -177,26 +177,26 @@ export default function TrendLineChart({
       .sort((a, b) => (valueOf(b.p) as number) - (valueOf(a.p) as number));
   }, [hoverX, visible, metric]);
 
-  /* 범례 클릭 = 우측 패널 포커스 이동. 이미 포커스된 항목을 다시 누르면 선을 끈다 */
+  /* 범례 클릭 = 그 계열만 켜고 끄는 단순 토글. 클릭한 게 방금 켜졌으면 우측 패널도 그 키워드로 따라간다. */
   const onLegendClick = (key: string) => {
-    if (hidden.has(key)) {
-      setHidden((prev) => { const n = new Set(prev); n.delete(key); return n; });
-      setFocusKey(key);
-      return;
-    }
-    if (focusKey === key || (focusKey === null && series[0]?.key === key)) {
-      setHidden((prev) => {
-        const n = new Set(prev);
+    setHidden((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) {
+        n.delete(key);
+        setFocusKey(key);
+      } else {
         n.add(key);
-        if (n.size === series.length) return prev; // 전부 끄는 것은 막는다
-        const nextVisible = series.find((s) => !n.has(s.key));
-        setFocusKey(nextVisible ? nextVisible.key : null);
-        return n;
-      });
-      return;
-    }
-    setFocusKey(key);
+        if (focusKey === key) {
+          const nextVisible = series.find((s) => s.key !== key && !n.has(s.key));
+          setFocusKey(nextVisible ? nextVisible.key : null);
+        }
+      }
+      return n;
+    });
   };
+
+  const selectAll = () => setHidden(new Set());
+  const selectNone = () => setHidden(new Set(series.map((s) => s.key)));
 
   const fmtV = (v: number) => (metric === "tradeValue" ? fmtTradeValue(v) : fmtPct(v));
 
@@ -229,7 +229,14 @@ export default function TrendLineChart({
         </button>
       </header>
 
-      {/* 범례 — 클릭하면 해당 계열을 끄고 켠다 */}
+      {/* 범례 도구 — 전체 선택/해제로 빠르게 리셋 */}
+      <div className="legend-tools">
+        <button type="button" className="trend-tablebtn" onClick={selectAll}>전체 선택</button>
+        <button type="button" className="trend-tablebtn" onClick={selectNone}>전체 해제</button>
+        <span className="legend-count">{visible.length} / {series.length}개 표시 중</span>
+      </div>
+
+      {/* 범례 — 클릭한 것만 보이는 단순 토글. 눌러서 켠 계열이 우측 패널로 따라간다 */}
       <ul className="trend-legend">
         {series.map((s, i) => {
           const { hue, dashed } = slotOf(i);
@@ -240,7 +247,7 @@ export default function TrendLineChart({
               <button type="button" onClick={() => onLegendClick(s.key)}
                 className={`${off ? "off" : ""} ${isFocus ? "focus" : ""}`.trim()}
                 aria-pressed={!off}
-                title={off ? "클릭하면 다시 표시합니다" : "클릭하면 우측에 구성 종목을 보여줍니다"}>
+                title={off ? "클릭하면 켜고 우측에 구성 종목을 보여줍니다" : "클릭하면 숨깁니다"}>
                 <svg width="18" height="10" aria-hidden="true">
                   <line x1="1" y1="5" x2="17" y2="5" stroke={colors[hue]} strokeWidth="2.5"
                     strokeLinecap="round" strokeDasharray={dashed ? "4 3" : undefined} />
