@@ -1,5 +1,5 @@
 import Sparkline from "./Sparkline";
-import { FREQ_LABEL, SOURCE_LABEL } from "@/lib/macroMeta";
+import { FREQ_LABEL, SOURCE_LABEL, UNIFIED_CATEGORIES } from "@/lib/macroMeta";
 import {
   macroValue,
   unitSuffix,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/format";
 import type { MacroCard } from "@/lib/reportTypes";
 
-/** 지표가 어느 나라 것인지 — 출처와 series_id 로 판정 */
+/** 지표가 어느 나라 것인지 — 출처와 series_id 로 판정. "국내 매크로/미국 매크로" 박스에만 쓴다. */
 function regionOf(c: MacroCard): "KR" | "US" {
   if (c.source === "ECOS" || c.source === "KRX") return "KR";
   if (c.source === "DERIVED") return "KR"; // M2 파생 = 한국은행 기반
@@ -23,6 +23,25 @@ const REGIONS = [
   { key: "KR" as const, flag: "🇰🇷", label: "한국" },
   { key: "US" as const, flag: "🇺🇸", label: "미국" },
 ];
+
+/** 국채금리·기준금리·환율·유가·금속처럼 국가 구분 없이 한곳에 모으는 카테고리 안에서
+ * 카드를 국기별로 소구분할 때만 쓴다(위 regionOf 보다 세분화 — 유로존·일본까지 구분). */
+type Flag = "US" | "KR" | "EU" | "JP";
+const FLAG_META: Record<Flag, { flag: string; label: string }> = {
+  US: { flag: "🇺🇸", label: "미국" },
+  KR: { flag: "🇰🇷", label: "한국" },
+  EU: { flag: "🇪🇺", label: "유로존" },
+  JP: { flag: "🇯🇵", label: "일본" },
+};
+const FLAG_ORDER: Flag[] = ["US", "KR", "EU", "JP"];
+
+function flagOf(c: MacroCard): Flag {
+  const id = c.seriesId.toUpperCase();
+  if (id.startsWith("KR_") || c.source === "ECOS") return "KR";
+  if (id.startsWith("JP_") || c.source === "MOF") return "JP";
+  if (id.startsWith("EZ_") || c.source === "ECB" || id === "IRLTLT01EZM156N") return "EU";
+  return "US";
+}
 
 function Card({ c }: { c: MacroCard }) {
   const daily = c.frequency === "D";
@@ -40,8 +59,9 @@ function Card({ c }: { c: MacroCard }) {
   return (
     <div
       title={tip}
-      /* 카드 높이를 고정해 카테고리 안에서 줄이 어긋나지 않게 한다 */
-      className="relative flex h-[136px] flex-col overflow-hidden rounded-lg border p-3"
+      /* lg 이상은 높이를 고정해 카테고리 안에서 줄이 어긋나지 않게 한다.
+         모바일은 폭이 좁아 같은 내용도 줄바꿈이 늘어나므로 고정 높이면 잘려 보인다 — min-h로 늘어나게 둔다. */
+      className="relative flex min-h-[136px] flex-col overflow-hidden rounded-lg border p-3 lg:h-[136px]"
       style={{ borderColor: "var(--line)", background: "var(--card)" }}
     >
       {c.spark.length > 1 && (
@@ -105,6 +125,58 @@ function Card({ c }: { c: MacroCard }) {
   );
 }
 
+/**
+ * 대시보드 라인 안의 점선 박스 하나 — 라벨(카테고리명 또는 국기+국가명) + 카드들.
+ * 모바일은 가로 라벨, 데스크톱은 세로 라벨(폭을 덜 먹음). 국가별 매크로 박스(카테고리로
+ * 소구분)와 통합 카테고리 박스(국기로 소구분) 양쪽에서 그대로 재사용한다.
+ */
+function GroupBox({ label, items }: { label: React.ReactNode; items: MacroCard[] }) {
+  return (
+    <div
+      className="rounded-lg border border-dashed p-2 lg:flex lg:items-stretch lg:gap-2.5"
+      style={{ borderColor: "var(--line)" }}
+    >
+      {/* 모바일 — 가로 라벨. 세로 글자용 열이 폭을 잡아먹지 않게 한다 */}
+      <div className="mb-2 flex items-center gap-1.5 lg:hidden">
+        <span
+          className="rounded px-1.5 py-0.5 text-[11px] font-bold"
+          style={{ background: "var(--card)", color: "var(--fg-subtle)" }}
+        >
+          {label}
+        </span>
+        <span className="text-[11px]" style={{ color: "var(--fg-subtle)" }}>
+          {items.length}개
+        </span>
+      </div>
+
+      {/* 데스크톱 — 세로 라벨 */}
+      <div
+        className="hidden w-6 shrink-0 items-center justify-center rounded lg:flex"
+        style={{ background: "var(--card)" }}
+      >
+        <span
+          className="whitespace-nowrap text-[12px] font-bold"
+          style={{
+            color: "var(--fg-subtle)",
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+          }}
+        >
+          {label} {items.length}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:flex lg:flex-wrap">
+        {items.map((c) => (
+          <div key={c.seriesId} className="lg:w-[168px]">
+            <Card c={c} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MacroBoard({
   cards,
   updatedAt,
@@ -135,6 +207,11 @@ export default function MacroBoard({
   const shown = cards.filter(
     (c) => c.category !== "해외지수" && c.category !== "국내지수"
   );
+
+  // 국채금리·기준금리·환율·유가·금속은 국가 구분 없이 한곳에 모으고,
+  // 나머지(경기·물가·통화·심리·고용)만 지금처럼 국내/미국 박스에 남긴다.
+  const unified = shown.filter((c) => UNIFIED_CATEGORIES.includes(c.category));
+  const regional = shown.filter((c) => !UNIFIED_CATEGORIES.includes(c.category));
 
   const stale = dataDate && dataDate !== baseDate;
 
@@ -167,8 +244,57 @@ export default function MacroBoard({
         </p>
       )}
 
+      {/* 통합 카테고리 — 국채금리·기준금리·환율·유가·금속. 국가 구분 없이 한곳에 모으고
+          박스 안에서만 국기로 소구분한다(item 2~6 요청사항). */}
+      {UNIFIED_CATEGORIES.map((cat) => {
+        const items = unified.filter((c) => c.category === cat);
+        if (!items.length) return null;
+
+        const byFlag = new Map<Flag, MacroCard[]>();
+        for (const c of items) {
+          const f = flagOf(c);
+          const g = byFlag.get(f) ?? [];
+          g.push(c);
+          byFlag.set(f, g);
+        }
+
+        return (
+          <div
+            key={cat}
+            className="rounded-xl border p-4"
+            style={{ borderColor: "var(--line)", background: "var(--card-2)" }}
+          >
+            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-bold">
+              {cat}
+              <span
+                className="text-[12px] font-normal"
+                style={{ color: "var(--fg-subtle)" }}
+              >
+                {items.length}개 지표
+              </span>
+            </h3>
+
+            <div className="flex flex-wrap items-stretch gap-2.5">
+              {FLAG_ORDER.filter((f) => byFlag.has(f)).map((f) => (
+                <GroupBox
+                  key={f}
+                  label={
+                    <>
+                      <span aria-hidden="true">{FLAG_META[f].flag}</span>{" "}
+                      {FLAG_META[f].label}
+                    </>
+                  }
+                  items={byFlag.get(f)!}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 국내 매크로 / 미국 매크로 — 위 통합 카테고리에 안 걸린 나머지(경기·물가·통화·심리·고용) */}
       {REGIONS.map(({ key, flag, label }) => {
-        const list = shown.filter((c) => regionOf(c) === key);
+        const list = regional.filter((c) => regionOf(c) === key);
         if (!list.length) return null;
 
         // 국가 안에서 카테고리별로 다시 묶는다
@@ -189,7 +315,7 @@ export default function MacroBoard({
               <span aria-hidden="true" className="text-[18px]">
                 {flag}
               </span>
-              {label}
+              {label} 매크로
               <span
                 className="text-[12px] font-normal"
                 style={{ color: "var(--fg-subtle)" }}
@@ -204,34 +330,7 @@ export default function MacroBoard({
             */}
             <div className="flex flex-wrap items-stretch gap-2.5">
               {[...groups.entries()].map(([cat, items]) => (
-                <div
-                  key={cat}
-                  className="flex items-stretch gap-2.5 rounded-lg border border-dashed p-2"
-                  style={{ borderColor: "var(--line)" }}
-                >
-                  <div
-                    className="flex w-6 shrink-0 items-center justify-center rounded"
-                    style={{ background: "var(--card)" }}
-                  >
-                    <span
-                      className="whitespace-nowrap text-[12px] font-bold"
-                      style={{
-                        color: "var(--fg-subtle)",
-                        writingMode: "vertical-rl",
-                        textOrientation: "mixed",
-                      }}
-                    >
-                      {cat} {items.length}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2.5">
-                    {items.map((c) => (
-                      <div key={c.seriesId} className="w-[calc(50%-5px)] lg:w-[168px]">
-                        <Card c={c} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <GroupBox key={cat} label={cat} items={items} />
               ))}
             </div>
           </div>

@@ -39,6 +39,44 @@ export const MACRO_DESC: Record<string, string> = {
   // ── 파생
   M2_TOTAL_YOY_M:
     "M2 전년동월대비 증가율. (당월값 − 12개월전값) ÷ 12개월전값 × 100.",
+
+  // ── 국채금리 (미 FRED / 한 ECOS / 일 재무성 / 유 ECB)
+  DGS1: "미국 1년물 국채금리.",
+  DGS5: "미국 5년물 국채금리.",
+  DGS20: "미국 20년물 국채금리.",
+  DGS30: "미국 30년물 국채금리. 2002~2006년 발행 중단 구간은 값이 비어 있음.",
+  KR_1Y: "한국 국고채 1년물 금리(한국은행 ECOS).",
+  KR_5Y: "한국 국고채 5년물 금리.",
+  KR_10Y: "한국 국고채 10년물 금리.",
+  KR_20Y: "한국 국고채 20년물 금리.",
+  KR_30Y: "한국 국고채 30년물 금리.",
+  JP_1Y: "일본 국채 1년물 금리(일본 재무성).",
+  JP_5Y: "일본 국채 5년물 금리.",
+  JP_10Y: "일본 국채 10년물 금리.",
+  JP_20Y: "일본 국채 20년물 금리.",
+  JP_30Y: "일본 국채 30년물 금리.",
+  EZ_1Y: "유로존 국채 1년물 금리(ECB, AAA등급 국채 기준 Svensson 모형).",
+  EZ_5Y: "유로존 국채 5년물 금리.",
+  EZ_10Y: "유로존 국채 10년물 금리.",
+  EZ_20Y: "유로존 국채 20년물 금리.",
+  EZ_30Y: "유로존 국채 30년물 금리.",
+  IRLTLT01EZM156N:
+    "유로존 10년물 국채금리(월간, OECD 집계). ECB 실시간 수집 실패 시 백업으로 쓰는 값.",
+
+  // ── 기준금리
+  DFEDTARU: "연준 정책금리 목표범위 상단.",
+  DFEDTARL: "연준 정책금리 목표범위 하단.",
+  ECBDFR: "ECB 예금금리(Deposit Facility Rate). 사실상의 정책금리 하한.",
+  ECBMRRFR: "ECB 기준금리(Main Refinancing Rate).",
+
+  // ── 환율 추가
+  FX_EUR_D: "원/유로 환율 종가.",
+
+  // ── 유가·금속
+  DCOILBRENTEU: "브렌트유(배럴당 달러).",
+  POILDUBUSDM: "두바이유(배럴당 달러, IMF 월간 집계).",
+  PCOPPUSDM: "구리 국제가격(톤당 달러, IMF 월간 집계).",
+  PALUMUSDM: "알루미늄 국제가격(톤당 달러, IMF 월간 집계).",
 };
 
 /** 단위 자체에 설명이 필요한 경우 */
@@ -69,21 +107,30 @@ export const FREQ_COMPARE_LABEL: Record<string, string> = {
   Y: "전년 대비",
 };
 
-/** 카테고리 표시 순서 — macro_series.category 값 기준 */
+/** 카테고리 표시 순서 — macro_series.category 값 기준.
+ * 앞 5개(국채금리~금속)는 국가 구분 없이 한곳에 모아 보여주는 통합 카테고리,
+ * 나머지(경기~고용)는 국내/미국 매크로 박스에 남는 카테고리다. MacroBoard.tsx 참고. */
 export const CATEGORY_ORDER = [
-  "금리",
+  "국채금리",
+  "기준금리",
   "환율",
+  "유가",
+  "금속",
+  "경기",
   "물가",
   "통화",
-  "경기",
   "심리",
   "고용",
-  "원자재",
 ];
+
+/** 위 카테고리 중 국가 구분 없이 한곳에 모아 보여주는 것들 — MacroBoard.tsx 에서 씀 */
+export const UNIFIED_CATEGORIES = ["국채금리", "기준금리", "환율", "유가", "금속"];
 
 export const SOURCE_LABEL: Record<string, string> = {
   FRED: "FRED",
   ECOS: "한국은행",
   KRX: "한국거래소",
   DERIVED: "파생계산",
+  MOF: "일본 재무성",
+  ECB: "유럽중앙은행",
 };

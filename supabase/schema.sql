@@ -106,9 +106,11 @@ create table if not exists collect_log (
 -- ══════════════════════════════════════════════════════════════
 
 -- 지표 메타 — 화면의 카테고리 그룹핑·이름·단위·갱신주기가 여기서 온다
+-- 주의: 기존 27개 행은 이 파일이 아니라 운영 DB에만 있다(초기 세팅 때 수기 입력된 드리프트).
+-- 새로 추가하는 행만 아래 insert 블록으로 버전관리한다.
 create table if not exists macro_series (
   series_id text primary key,
-  source    text not null check (source in ('FRED', 'ECOS', 'DERIVED', 'KRX')),
+  source    text not null check (source in ('FRED', 'ECOS', 'DERIVED', 'KRX', 'MOF', 'ECB')),
   stat_code text,
   item_code text,
   name_kr   text not null,
@@ -116,6 +118,12 @@ create table if not exists macro_series (
   frequency text not null,     -- D / M / Q / A
   unit      text not null
 );
+
+-- 기존 DB에는 이미 macro_series 가 있고 CHECK 제약이 옛 목록으로 걸려 있으므로,
+-- 재실행 시에도 MOF(일본 재무성)·ECB(유럽중앙은행) 출처를 허용하도록 갱신한다.
+alter table macro_series drop constraint if exists macro_series_source_check;
+alter table macro_series add constraint macro_series_source_check
+  check (source in ('FRED', 'ECOS', 'DERIVED', 'KRX', 'MOF', 'ECB'));
 
 -- 일별 매크로 값 — 2015-01-01 부터 매일 1행. 휴일·미발표는 forward-fill.
 -- 컬럼명은 macro_series.series_id 의 소문자.
@@ -159,8 +167,115 @@ create table if not exists macro_daily (
   kosdaq                 numeric,
   -- 파생
   m2_total_yoy_m         numeric,
+  -- 국채금리 (미 FRED / 한 ECOS 817Y002 / 일 재무성 CSV / 유 ECB SDW + FRED 월간 백업)
+  dgs1                   numeric,
+  dgs5                   numeric,
+  dgs20                  numeric,
+  dgs30                  numeric,
+  kr_1y                  numeric,
+  kr_5y                  numeric,
+  kr_10y                 numeric,
+  kr_20y                 numeric,
+  kr_30y                 numeric,
+  jp_1y                  numeric,
+  jp_5y                  numeric,
+  jp_10y                 numeric,
+  jp_20y                 numeric,
+  jp_30y                 numeric,
+  ez_1y                  numeric,
+  ez_5y                  numeric,
+  ez_10y                 numeric,
+  ez_20y                 numeric,
+  ez_30y                 numeric,
+  irltlt01ezm156n        numeric,  -- 유로존 10년물 월간 백업(ECB API 실패 시에도 채워짐)
+  -- 기준금리 (미 타깃밴드 / 유 ECB)
+  dfedtaru               numeric,
+  dfedtarl               numeric,
+  ecbdfr                 numeric,
+  ecbmrrfr               numeric,
+  -- 환율 추가
+  fx_eur_d               numeric,
+  -- 유가·금속
+  dcoilbrenteu           numeric,
+  poildubusdm            numeric,
+  pcoppusdm              numeric,
+  palumusdm              numeric,
   updated_at             timestamptz default now()
 );
+
+-- 위 컬럼들은 이미 만들어진 운영 macro_daily 에도 안전하게 더할 수 있도록 alter 로 반복한다
+-- (create table if not exists 는 기존 테이블에 새 컬럼을 추가해주지 않는다).
+alter table macro_daily add column if not exists dgs1            numeric;
+alter table macro_daily add column if not exists dgs5            numeric;
+alter table macro_daily add column if not exists dgs20           numeric;
+alter table macro_daily add column if not exists dgs30           numeric;
+alter table macro_daily add column if not exists kr_1y           numeric;
+alter table macro_daily add column if not exists kr_5y           numeric;
+alter table macro_daily add column if not exists kr_10y          numeric;
+alter table macro_daily add column if not exists kr_20y          numeric;
+alter table macro_daily add column if not exists kr_30y          numeric;
+alter table macro_daily add column if not exists jp_1y           numeric;
+alter table macro_daily add column if not exists jp_5y           numeric;
+alter table macro_daily add column if not exists jp_10y          numeric;
+alter table macro_daily add column if not exists jp_20y          numeric;
+alter table macro_daily add column if not exists jp_30y          numeric;
+alter table macro_daily add column if not exists ez_1y           numeric;
+alter table macro_daily add column if not exists ez_5y           numeric;
+alter table macro_daily add column if not exists ez_10y          numeric;
+alter table macro_daily add column if not exists ez_20y          numeric;
+alter table macro_daily add column if not exists ez_30y          numeric;
+alter table macro_daily add column if not exists irltlt01ezm156n numeric;
+alter table macro_daily add column if not exists dfedtaru        numeric;
+alter table macro_daily add column if not exists dfedtarl        numeric;
+alter table macro_daily add column if not exists ecbdfr          numeric;
+alter table macro_daily add column if not exists ecbmrrfr        numeric;
+alter table macro_daily add column if not exists fx_eur_d        numeric;
+alter table macro_daily add column if not exists dcoilbrenteu    numeric;
+alter table macro_daily add column if not exists poildubusdm     numeric;
+alter table macro_daily add column if not exists pcoppusdm       numeric;
+alter table macro_daily add column if not exists palumusdm       numeric;
+
+-- 지표 메타 — 새로 추가하는 series 만 upsert 한다(기존 27개는 위 주석대로 이미 운영 DB에 있음)
+insert into macro_series (series_id, source, stat_code, item_code, name_kr, category, frequency, unit) values
+  ('DGS1',            'FRED', 'DGS1',      null,        '미1년물 국채금리',       '국채금리', 'D', '%'),
+  ('DGS5',            'FRED', 'DGS5',      null,        '미5년물 국채금리',       '국채금리', 'D', '%'),
+  ('DGS20',           'FRED', 'DGS20',     null,        '미20년물 국채금리',      '국채금리', 'D', '%'),
+  ('DGS30',           'FRED', 'DGS30',     null,        '미30년물 국채금리',      '국채금리', 'D', '%'),
+  ('KR_1Y',           'ECOS', '817Y002',   '010190000', '한국 국고채 1년',        '국채금리', 'D', '%'),
+  ('KR_5Y',           'ECOS', '817Y002',   '010200001', '한국 국고채 5년',        '국채금리', 'D', '%'),
+  ('KR_10Y',          'ECOS', '817Y002',   '010210000', '한국 국고채 10년',       '국채금리', 'D', '%'),
+  ('KR_20Y',          'ECOS', '817Y002',   '010220000', '한국 국고채 20년',       '국채금리', 'D', '%'),
+  ('KR_30Y',          'ECOS', '817Y002',   '010230000', '한국 국고채 30년',       '국채금리', 'D', '%'),
+  ('JP_1Y',           'MOF',  null,        '1Y',        '일본 국채 1년',          '국채금리', 'D', '%'),
+  ('JP_5Y',           'MOF',  null,        '5Y',        '일본 국채 5년',          '국채금리', 'D', '%'),
+  ('JP_10Y',          'MOF',  null,        '10Y',       '일본 국채 10년',         '국채금리', 'D', '%'),
+  ('JP_20Y',          'MOF',  null,        '20Y',       '일본 국채 20년',         '국채금리', 'D', '%'),
+  ('JP_30Y',          'MOF',  null,        '30Y',       '일본 국채 30년',         '국채금리', 'D', '%'),
+  ('EZ_1Y',           'ECB',  'YC',        'SR_1Y',     '유로존 국채 1년',        '국채금리', 'D', '%'),
+  ('EZ_5Y',           'ECB',  'YC',        'SR_5Y',     '유로존 국채 5년',        '국채금리', 'D', '%'),
+  ('EZ_10Y',          'ECB',  'YC',        'SR_10Y',    '유로존 국채 10년',       '국채금리', 'D', '%'),
+  ('EZ_20Y',          'ECB',  'YC',        'SR_20Y',    '유로존 국채 20년',       '국채금리', 'D', '%'),
+  ('EZ_30Y',          'ECB',  'YC',        'SR_30Y',    '유로존 국채 30년',       '국채금리', 'D', '%'),
+  ('IRLTLT01EZM156N', 'FRED', 'IRLTLT01EZM156N', null,   '유로존 10년물(월간 백업)', '국채금리', 'M', '%'),
+  ('DFEDTARU',        'FRED', 'DFEDTARU',  null,        '연준 목표금리 상단',      '기준금리', 'D', '%'),
+  ('DFEDTARL',        'FRED', 'DFEDTARL',  null,        '연준 목표금리 하단',      '기준금리', 'D', '%'),
+  ('ECBDFR',          'FRED', 'ECBDFR',    null,        'ECB 예금금리',           '기준금리', 'D', '%'),
+  ('ECBMRRFR',        'FRED', 'ECBMRRFR',  null,        'ECB 기준금리(MRO)',      '기준금리', 'D', '%'),
+  ('FX_EUR_D',        'ECOS', '731Y001',   '0000003',   '원/유로',               '환율',   'D', '원'),
+  ('DCOILBRENTEU',    'FRED', 'DCOILBRENTEU', null,     '브렌트유',              '유가',   'D', 'USD'),
+  ('POILDUBUSDM',     'FRED', 'POILDUBUSDM',  null,     '두바이유',              '유가',   'M', 'USD'),
+  ('PCOPPUSDM',       'FRED', 'PCOPPUSDM', null,        '구리',                  '금속',   'M', 'USD'),
+  ('PALUMUSDM',       'FRED', 'PALUMUSDM', null,        '알루미늄',              '금속',   'M', 'USD')
+on conflict (series_id) do update set
+  source = excluded.source, stat_code = excluded.stat_code, item_code = excluded.item_code,
+  name_kr = excluded.name_kr, category = excluded.category, frequency = excluded.frequency,
+  unit = excluded.unit;
+
+-- 기존 국채·기준금리 지표는 "금리" 카테고리 하나에 섞여 있었다 — 국채금리/기준금리로 재분류
+update macro_series set category = '국채금리' where series_id in ('DGS10', 'DGS2', 'T10Y2Y');
+update macro_series set category = '기준금리' where series_id in ('DFF', 'RATE_BASE_M');
+-- WTI는 '원자재'로 따로 있었다 — 브렌트·두바이와 "유가" 한곳에 모은다
+update macro_series set category = '유가' where series_id = 'DCOILWTICO';
 
 -- ══════════════════════════════════════════════════════════════
 -- ③ 분석 파이프라인
