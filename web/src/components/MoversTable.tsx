@@ -79,13 +79,16 @@ function Chip({
   );
 }
 
-/** 관련 종목 — 쉼표로 나열된 원문을 개별 뱃지로 부각해서 보여준다 */
+/** 관련 종목 — 쉼표로 나열된 원문을 개별 뱃지로 보여준다.
+ * PC는 세로로 쌓고(공간이 남는 우측 패널), 모바일은 옆으로 나열해 세로 길이를 줄인다. */
 function RelatedChips({
   text,
   align = "end",
+  layout = "column",
 }: {
   text: string;
   align?: "start" | "end";
+  layout?: "column" | "row";
 }) {
   const names = text
     .split(/[,、·]/)
@@ -93,16 +96,21 @@ function RelatedChips({
     .filter(Boolean);
   if (!names.length) return null;
 
+  const dirCls =
+    layout === "row"
+      ? "flex-row flex-wrap items-center"
+      : `flex-col ${align === "end" ? "items-end" : "items-start"}`;
+
   return (
-    <div className={`flex flex-col gap-1 ${align === "end" ? "items-end" : "items-start"}`}>
+    <div className={`flex gap-1 ${dirCls}`}>
       {names.map((n, i) => (
         <span
           key={i}
-          className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-bold"
+          className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-semibold"
           style={{
-            borderColor: "var(--accent)",
-            background: "var(--accent-bg)",
-            color: "var(--accent-fg)",
+            borderColor: "var(--line)",
+            background: "var(--card-2)",
+            color: "var(--fg-muted)",
           }}
         >
           {n}
@@ -227,7 +235,7 @@ function MoverCard({ r }: { r: ReportRow }) {
           )}
           {r.related && (
             <div className="mt-1.5">
-              <RelatedChips text={r.related} align="start" />
+              <RelatedChips text={r.related} layout="row" />
             </div>
           )}
           {r.refs.length > 0 && (
